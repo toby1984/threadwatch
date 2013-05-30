@@ -291,7 +291,7 @@ static int populateThreadSampleRecord(DataRecord *record,ThreadListNode *current
        return 0;
    }
 
-   if ( gettimeofday( &record->timestamp,NULL) ) {
+   if ( clock_gettime( CLOCK_REALTIME , &record->timestamp) ) {
      fprintf(stderr,"ERROR: Failed to get current time?");
      return 0;    
    }
@@ -315,7 +315,8 @@ static int isSamplingThread(jvmtiThreadInfo *threadInfo) {
 
 static int populateThreadStartRecord(DataRecord *record,ThreadListNode *current) 
 {
-    if ( gettimeofday( &record->timestamp,NULL) ) {
+
+    if ( clock_gettime( CLOCK_REALTIME , &record->timestamp ) ) {
       fprintf(stderr,"ERROR: Failed to get current time?");
       return 0;    
     }    
@@ -327,7 +328,7 @@ static int populateThreadStartRecord(DataRecord *record,ThreadListNode *current)
 
 static int populateThreadDeathRecord(DataRecord *record,ThreadListNode *current) 
 {
-    if ( gettimeofday( &record->timestamp,NULL) ) {
+    if ( clock_gettime( CLOCK_REALTIME , &record->timestamp ) ) {
       fprintf(stderr,"ERROR: Failed to get current time?");
       return 0;    
     }    

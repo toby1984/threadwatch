@@ -5,6 +5,8 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 
+import org.joda.time.DateTime;
+
 public final class ThreadEvent
 {
     public static final int THREAD_START = 0;
@@ -28,7 +30,7 @@ public final class ThreadEvent
     public byte type;
     public int threadId;
     public long timestampSeconds;
-    public long timestampMicros;
+    public long timestampNanos;
     public int threadStateMask;
     public String threadName;
 
@@ -36,8 +38,8 @@ public final class ThreadEvent
     {
         this.type = buffer[offset]; // offset 0
         this.threadId = read16Bit( buffer          , offset + 4 );
-        this.timestampSeconds = read32Bit( buffer , offset + 8);
-        this.timestampMicros = read32Bit( buffer  , offset + 8);        
+        this.timestampSeconds = read64Bit( buffer , offset + 8);
+        this.timestampNanos = read64Bit( buffer  , offset + 16);        
     }
     
     protected int parseThreadStartEvent(byte[] buffer,int offset) {
@@ -60,12 +62,12 @@ public final class ThreadEvent
     public ThreadEvent() {
     }
     
-    public void ThreadEvent(ThreadEvent other)
+    public ThreadEvent(ThreadEvent other)
     {
         this.type = other.type;
         this.threadId = other.threadId;
         this.timestampSeconds = other.timestampSeconds;
-        this.timestampMicros = other.timestampMicros;
+        this.timestampNanos = other.timestampNanos;
         this.threadStateMask = other.threadStateMask;
         this.threadName = other.threadName;
     }
@@ -95,7 +97,7 @@ public final class ThreadEvent
     @Override
     public String toString()
     {
-        String result = ",threadId="+threadId+",ts_seconds="+timestampSeconds+",ts_micros="+timestampMicros;         
+        String result = ",threadId="+threadId+",ts_seconds="+timestampSeconds+",ts_micros="+timestampNanos;         
         final String sType;
         switch(type) {
             case THREAD_START:
@@ -153,14 +155,21 @@ public final class ThreadEvent
 
     protected final int read32Bit(byte[] buffer,int offset) 
     {
-        final int loWord = read16Bit(buffer,offset);
-        final int hiWord = read16Bit(buffer,offset+2);         
-        return ((hiWord<<16)|loWord) & 0xffffffff;
+        final int loWord = read16Bit(buffer,offset) & 0xffff;
+        final int hiWord = read16Bit(buffer,offset+2) & 0xffff;         
+        return ((hiWord<<16)|loWord);
     }
+    
+    protected final long read64Bit(byte[] buffer,int offset) 
+    {
+        final long  loWord = read32Bit(buffer,offset);
+        final long  hiWord = read32Bit(buffer,offset+4);         
+        return ((hiWord<<32)|loWord) & 0xffffffff;
+    }    
 
     public long getTimestampMicros()
     {
-        return timestampMicros;
+        return timestampNanos;
     }
 
     public long getTimestampSeconds()
@@ -171,5 +180,29 @@ public final class ThreadEvent
     public int getThreadId()
     {
         return threadId;
+    }
+    
+    public HiResTimestamp getTimestamp() {
+        return new HiResTimestamp(this.timestampSeconds,this.timestampNanos);
+    }
+    
+    public static final class HiResTimestamp 
+    {
+        public final long secondsSinceEpoch;
+        public final long nanoseconds;
+        
+        private HiResTimestamp(long secondsSinceEpoch, long nanoseconds)
+        {
+            this.secondsSinceEpoch = secondsSinceEpoch;
+            this.nanoseconds = nanoseconds;
+        }
+
+        public DateTime toDateTime() 
+        {
+            // 1,000,000,000
+            System.out.println("Seconds: "+secondsSinceEpoch+" / nanos: "+nanoseconds+" ( = "+ (nanoseconds/1000000.0)+" millis)");
+            final int millis = (int) (nanoseconds / 1000000.0);
+            return new DateTime( secondsSinceEpoch*1000  ).plusMillis( millis );
+        }
     }
 }

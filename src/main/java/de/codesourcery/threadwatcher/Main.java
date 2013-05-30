@@ -18,7 +18,7 @@ public class Main
     public void run(File file)
     {
         final JFrame frame = new JFrame("Thread-Watcher V0.0");
-        final RenderPanel panel = new RenderPanel(file);
+        final RenderPanel panel = new RenderPanel(new FileReader(file));
         panel.setPreferredSize(new Dimension(640,480 ) );
         frame.add( panel );
         frame.pack();
@@ -27,10 +27,10 @@ public class Main
     
     protected final class RenderPanel extends JPanel 
     {
-        private File inputFile;
+        private FileReader reader;
         
-        public RenderPanel(File inputFile) {
-            this.inputFile = inputFile;
+        public RenderPanel(FileReader reader) {
+            this.reader = reader;
         }
         
         @Override

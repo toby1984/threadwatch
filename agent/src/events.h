@@ -2,6 +2,7 @@
 #include <pthread.h>
 #include <jvmti.h>
 #include <sys/time.h>
+#include <unistd.h>
 
 #ifndef DATA_H
 
@@ -32,7 +33,7 @@ typedef struct ThreadStateChangeEvent {
 struct __attribute__ ((__packed__)) DataRecord {
        int type; // size: 4
        int uniqueThreadId; // size: 4
-       struct timeval timestamp; // size: 16
+       struct timespec timestamp; // size: 16
        union {
          ThreadStartEvent startEvent;
          ThreadDeathEvent deathEvent;

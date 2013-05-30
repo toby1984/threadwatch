@@ -5,6 +5,10 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 
+import org.joda.time.Interval;
+
+import de.codesourcery.threadwatcher.ThreadEvent.HiResTimestamp;
+
 public class FileReader
 {
     private static final byte[] FILE_HEADER_BIG_ENDIAN = { (byte) 0xde , (byte) 0xad, (byte) 0xbe , (byte) 0xef };
@@ -21,7 +25,10 @@ public class FileReader
     private int readPtr;
     private int writePtr;
     
-    private final ThreadEvent event=new ThreadEvent();
+    private final ThreadEvent event1=new ThreadEvent();
+    private final ThreadEvent event2=new ThreadEvent();    
+    
+    private Interval interval;
     
     public static void main(String[] args) throws IOException
     {
@@ -34,10 +41,10 @@ public class FileReader
                 return true;
             }
         };
-        new FileReader(new File( "/tmp/threadwatcher.out")).visit( visitor );
+        FileReader reader = new FileReader(new File( "/tmp/threadwatcher.out"));
+//        reader.visit( visitor );
+        System.out.println("Time interval: "+reader.getInterval());
     }
-    
-
     
     public FileReader(File file) {
         if (file == null) {
@@ -49,7 +56,12 @@ public class FileReader
     public static abstract class FileVisitor 
     {
         public abstract boolean visit(ThreadEvent event);
-    }
+    }  
+    
+    public static abstract class LookAheadFileVisitor 
+    {
+        public abstract boolean visit(ThreadEvent event,boolean hasMore);
+    }    
     
     private void reset() throws IOException 
     {
@@ -64,7 +76,38 @@ public class FileReader
         readPtr = 0;
         writePtr = 0;     
     }
-
+    
+    public Interval getInterval() throws IOException
+    {
+        if ( interval == null ) 
+        {
+            TimeIntervalVisitor visitor = new TimeIntervalVisitor();
+            visit( visitor );
+            if ( visitor.firstEvent != null && visitor.lastEvent != null ) {
+                interval = new Interval( visitor.firstEvent.toDateTime() , visitor.lastEvent.toDateTime() );
+            }
+        }
+        return interval;
+    }
+    
+    private static final class TimeIntervalVisitor extends LookAheadFileVisitor
+    {
+        public HiResTimestamp firstEvent;
+        public HiResTimestamp lastEvent;
+        
+        @Override
+        public boolean visit(ThreadEvent event,boolean hasNext)
+        {
+            if ( firstEvent == null ) {
+                firstEvent = event.getTimestamp();
+            } 
+            if ( ! hasNext ) {
+                lastEvent = event.getTimestamp();
+            }
+            return true;
+        }
+    }
+    
     public void visit(FileVisitor visitor) throws IOException 
     {
         reset();
@@ -74,24 +117,67 @@ public class FileReader
         int records = 0;
         do 
         {
-            if ( spaceInBuffer() >= ThreadEvent.MAX_RECORD_SIZE ) {
-                fillBuffer();
-            }
-            
-            if ( bytesInBuffer < ThreadEvent.MIN_RECORD_SIZE ) 
-            {
+            if ( ! readOneEvent( event1 ) ) {
                 break;
             }
-            
-            final int bytesConsumed = event.parseBuffer( buffer , readPtr );
-            
             records++;
-            consumed(bytesConsumed);
-            visitor.visit( event );
+            visitor.visit( event1 );
         } while ( true );
         
        System.out.println("Records: "+records);
     }
+    
+    private boolean readOneEvent(ThreadEvent toPopulate) throws IOException 
+    {
+        if ( spaceInBuffer() >= ThreadEvent.MAX_RECORD_SIZE ) {
+            fillBuffer();
+        }
+        
+        if ( bytesInBuffer < ThreadEvent.MIN_RECORD_SIZE ) 
+        {
+            return false;
+        }
+        
+        final int bytesConsumed = toPopulate.parseBuffer( buffer , readPtr );
+        consumed(bytesConsumed);
+        return true;
+    }
+    
+    public void visit(LookAheadFileVisitor visitor) throws IOException 
+    {
+        reset();
+        readFileHeader();
+        
+        ThreadEvent current = event1;
+        ThreadEvent next = event2;    
+        
+        if ( ! readOneEvent( current ) ) {
+            return;
+        }
+        
+        int records = 0;
+        do 
+        {
+            if ( ! readOneEvent( next ) ) 
+            {
+                records++;
+                visitor.visit(current,false);
+                break;
+            }   
+            
+            records++;            
+            visitor.visit( current , true );
+            if ( current == event1 ) {
+                current = event2;
+                next = event1;
+            } else {
+                current = event1;
+                next = event2;                
+            }
+            
+        } while ( true );
+        System.out.println("Records: "+records);        
+    }    
     
     private void consumed(int numberOfBytes) 
     {

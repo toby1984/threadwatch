@@ -1,5 +1,5 @@
 CC=/usr/bin/gcc
-CFLAGS=-g -Wall -Wformat=0 -fPIC -O0 
+CFLAGS=-g -Wall -Wformat=0 -fPIC -O0
 SRC=src
 INCLUDES=-I/usr/local/java/include -I/usr/local/java/include/linux -Isrc
 MYINCLUDES=src
@@ -8,7 +8,7 @@ JAVA=java
 JAVAC=javac
 
 all: agent events threadlist writerthread
-	gcc -pthread -fPIC -shared -Wall -o $(TARGET)/agent.so $(TARGET)/agent.o $(TARGET)/events.o $(TARGET)/threadlist.o $(TARGET)/writerthread.o
+	gcc -pthread -fPIC -shared -Wall  -Wl,--no-as-needed -lrt -o $(TARGET)/agent.so $(TARGET)/agent.o $(TARGET)/events.o $(TARGET)/threadlist.o $(TARGET)/writerthread.o
 
 agent: $(SRC)/agent.c $(MYINCLUDES)/agent.h
 	$(CC) -c -o $(TARGET)/agent.o $(SRC)/agent.c $(CFLAGS) ${INCLUDES}

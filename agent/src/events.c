@@ -12,15 +12,16 @@ RingBuffer *createRingBuffer()
     printf("Creating ringbuffer with size %d\n",sizeof(RingBuffer));
 #endif
 
-//    printf("sizeof(DataRecord): %d\n",sizeof(DataRecord));
-//    printf("sizeof(ThreadStartEvent): %d\n",sizeof(ThreadStartEvent));
-//    printf("sizeof(ThreadDeathEvent): %d\n",sizeof(ThreadDeathEvent));
-//    printf("sizeof(ThreadStateChangeEvent): %d\n",sizeof(ThreadStateChangeEvent));
-//    printf("Offset uniqueThreadId: %d\n",(void*) &startEvent.uniqueThreadId - (void*) &startEvent);
-//    printf("Offset timestamp: %d\n",(void*) &startEvent.timestamp - (void*) &startEvent);
-//    printf("Offset startEvent: %d\n",(void*) &startEvent.startEvent - (void*) &startEvent);
-//    printf("sizeof(jint): %d\n", sizeof(jint));
-//    printf("Offset threadState: %d\n",(void*) &startEvent.stateChangeEvent - (void*) &startEvent);
+    printf("sizeof(DataRecord): %d\n",sizeof(DataRecord));
+    printf("sizeof(ThreadStartEvent): %d\n",sizeof(ThreadStartEvent));
+    printf("sizeof(ThreadDeathEvent): %d\n",sizeof(ThreadDeathEvent));
+    printf("sizeof(ThreadStateChangeEvent): %d\n",sizeof(ThreadStateChangeEvent));
+    printf("sizeof(timestamp): %d\n",sizeof(struct timespec));
+    printf("Offset uniqueThreadId: %d\n",(void*) &startEvent.uniqueThreadId - (void*) &startEvent);
+    printf("Offset timestamp: %d\n",(void*) &startEvent.timestamp - (void*) &startEvent);
+    printf("Offset startEvent: %d\n",(void*) &startEvent.startEvent - (void*) &startEvent);
+    printf("sizeof(jint): %d\n", sizeof(jint));
+    printf("Offset threadState: %d\n",(void*) &startEvent.stateChangeEvent - (void*) &startEvent);
 
     RingBuffer *result = (RingBuffer*) malloc( sizeof( RingBuffer ) );
     
