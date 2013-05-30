@@ -1,0 +1,9 @@
+*.log
+core
+*~
+*.class
+*.so
+*.o
+.settings
+.project
+.classpath
