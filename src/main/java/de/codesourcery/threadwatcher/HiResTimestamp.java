@@ -8,6 +8,18 @@ public final class HiResTimestamp implements Comparable<HiResTimestamp>
     public final long nanoseconds;
     public final boolean truncatedToMillis;
     
+    public HiResTimestamp(HiResTimestamp other)
+    {
+    	this.secondsSinceEpoch = other.secondsSinceEpoch;
+    	this.nanoseconds = other.nanoseconds;
+    	this.truncatedToMillis = other.truncatedToMillis;
+    }
+    
+    public HiResTimestamp(DateTime dt,boolean truncatedToMillis)
+    {
+    	this( dt.getMillis()/1000 , (dt.getMillis() - (dt.getMillis()/1000)*1000)*1000000, truncatedToMillis );
+    }
+    
     public HiResTimestamp(long secondsSinceEpoch, long nanoseconds,boolean truncatedToMillis)
     {
         this.secondsSinceEpoch = secondsSinceEpoch;
@@ -17,10 +29,11 @@ public final class HiResTimestamp implements Comparable<HiResTimestamp>
     
     @Override
     public String toString() {
-    	return toDateTime()+" (truncated_to_millis: "+truncatedToMillis+" , nanos: "+nanoseconds+")";
+    	return toDateTime()+" (millis: "+truncatedToMillis+" | "+nanoseconds+")";
     }
     
-    public HiResTimestamp plusSeconds(int seconds) {
+    public HiResTimestamp plusSeconds(int seconds) 
+    {
     	return new HiResTimestamp(this.secondsSinceEpoch+seconds , this.nanoseconds , this.truncatedToMillis );
     }
     
@@ -28,7 +41,17 @@ public final class HiResTimestamp implements Comparable<HiResTimestamp>
     {
     	int seconds = (int) (millis/1000.0);
     	long m = (long) (millis - seconds*1000.0);
-    	return new HiResTimestamp(this.secondsSinceEpoch+seconds , m * 1000 , this.truncatedToMillis );
+    	long newNanos = this.nanoseconds + m*1000000;
+    	if ( newNanos > 1000000000 ) 
+    	{
+    		long deltaSeconds = (long) (newNanos / 1000000000);
+    		seconds += deltaSeconds;
+    		newNanos = newNanos - deltaSeconds*1000000000;
+    	} else if ( newNanos < 0 ) {
+    		seconds--;
+    		newNanos += 1000000000;
+    	}
+    	return new HiResTimestamp(this.secondsSinceEpoch+seconds , newNanos , this.truncatedToMillis );
     }    
     
     @Override
@@ -53,7 +76,7 @@ public final class HiResTimestamp implements Comparable<HiResTimestamp>
 	}
 	
 	public HiResTimestamp truncateToMilliseconds() {
-		int millis = (int) (nanoseconds / 1000000.0);
+		long millis = (long) (nanoseconds / 1000000.0);
 		return new HiResTimestamp( secondsSinceEpoch , millis*1000000 , true );
 	}
 

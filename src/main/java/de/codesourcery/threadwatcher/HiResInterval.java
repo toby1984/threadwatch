@@ -1,9 +1,15 @@
 package de.codesourcery.threadwatcher;
 
+import org.joda.time.DateTime;
+
 public final class HiResInterval {
 
 	public final HiResTimestamp start;
 	public final HiResTimestamp end;
+	
+	public HiResInterval(DateTime start, DateTime end) {
+		this( new HiResTimestamp( start , false ) ,new HiResTimestamp( end , false ) ); 
+	}
 	
 	public HiResInterval(HiResTimestamp start, HiResTimestamp end) 
 	{
@@ -29,7 +35,7 @@ public final class HiResInterval {
 	
 	public HiResInterval rollByMilliseconds(int millis) 
 	{
-		return new HiResInterval( start.plusMilliseconds( millis ) , end.plusSeconds( millis ) );
+		return new HiResInterval( start.plusMilliseconds( millis ) , end.plusMilliseconds( millis ) );
 	}	
 	
 	public double getDurationInMilliseconds() 
@@ -37,15 +43,21 @@ public final class HiResInterval {
 		return getDurationInMilliseconds(this.start,this.end);
 	}
 	
-	public static double getDurationInMilliseconds(HiResTimestamp start,HiResTimestamp end) {
-		double deltaSeconds = end.secondsSinceEpoch - start.secondsSinceEpoch;
-		double deltaNano;
-		if ( start.nanoseconds < end.nanoseconds ) {
-			deltaNano = end.nanoseconds - start.nanoseconds;
-		} else { // start > end
-			deltaNano = (1000000-start.nanoseconds)+end.nanoseconds;
+	public static double getDurationInMilliseconds(HiResTimestamp start,HiResTimestamp end) 
+	{
+		if ( start.compareTo( end ) > 0 ) {
+			throw new IllegalArgumentException( "start "+start+" > end "+end);
 		}
-		return  deltaSeconds*1000.0 + deltaNano/1000000.0;
+		long deltaSeconds = end.secondsSinceEpoch - start.secondsSinceEpoch;
+		long deltaNano = end.nanoseconds >= start.nanoseconds ? end.nanoseconds-start.nanoseconds : start.nanoseconds - end.nanoseconds;
+		if ( deltaNano < 0 ) {
+			throw new RuntimeException("getDurationMillis( "+start+" - "+end+" ) = "+deltaNano);
+		}
+		double result = deltaSeconds*1000.0 + deltaNano/1000000.0;
+		if ( result < 0 ) {
+			throw new RuntimeException("getDurationMillis( "+start+" - "+end+" ) = "+deltaNano);
+		}
+		return result;
 	}
 	
 	@Override
@@ -65,7 +77,9 @@ public final class HiResInterval {
 			if ( i2.contains( i1.end ) ) {
 				return true;
 			}
-			return i1.end.compareTo( i2.end ) > 0;
+			return i1.end.compareTo( i2.end ) >= 0;
+		} else if ( i2.contains( i1.start ) && i2.contains( i1.end ) ) {
+			return true;
 		}
 		return false;
 	}

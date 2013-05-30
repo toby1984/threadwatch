@@ -41,6 +41,13 @@ public class FileReader
     public static void main(String[] args) throws IOException
     {
         FileReader reader = new FileReader(new File( "/tmp/threadwatcher.out"));
+        HiResInterval start = new HiResInterval( reader.getInterval().start , reader.getInterval().start.plusSeconds( 1 ) ); 
+        for (int i = 0; i < 5 ; i++ ) 
+        {
+        	System.out.println("Threads in interval "+start);
+        	System.out.println(reader.getAliveThreadsInInterval( start) );
+        	start = start.rollBySeconds(1);
+        }
     }
     
     public FileReader(File file) throws IOException 
@@ -66,7 +73,7 @@ public class FileReader
         
         System.out.println("Time interval: "+getInterval());
         System.out.println("Threads: \n"+getThreadNamesByID() );
-//        System.out.println("Offsets: "+StringUtils.join( fileOffsetsByMilliseconds.entrySet() , "\n"));
+        System.out.println("Offsets: "+StringUtils.join( fileOffsetsByMilliseconds.entrySet() , "\n"));
         System.out.println("Lifetimes: \n"+StringUtils.join(threadLifetimes.entrySet(),"\n" ) );        
     }
     
@@ -110,9 +117,15 @@ public class FileReader
         	if ( event.type == ThreadEvent.THREAD_START ) 
         	{
         		threadNamesByID.put( event.threadId , event.threadName );
-        		threadStartTimes.put( event.threadId , event.getTimestamp() );
+        		HiResTimestamp existing = threadStartTimes.put( event.threadId , event.getTimestamp() );
+        		if ( existing != null ) {
+        			throw new RuntimeException("Thread #"+event.threadId+" started more than once?");
+        		}
         	} else if ( event.type == ThreadEvent.THREAD_DEATH ) {
-        		threadDeathTimes.put( event.threadId , event.getTimestamp() );
+        		HiResTimestamp existing = threadDeathTimes.put( event.threadId , event.getTimestamp() );
+        		if ( existing != null ) {
+        			throw new RuntimeException("Thread #"+event.threadId+" died more than once?");
+        		}
         	}
         	
             if ( firstEvent == null ) 
@@ -178,6 +191,8 @@ public class FileReader
     	for ( Entry<Integer, HiResInterval> entry : threadLifetimes.entrySet() ) {
     		if ( interval.overlaps( entry.getValue() ) ) {
     			result.add( entry.getKey() );
+    		} else {
+    			System.out.println( interval+" does not contain "+entry.getValue());
     		}
     	}
     	return result;
@@ -209,6 +224,7 @@ public class FileReader
         readFileHeader();
         
         Long startOffset = fileOffsetsByMilliseconds.get( start.truncateToMilliseconds() );
+        System.out.println("visit(): start="+start+" => offset: "+startOffset);
         int delta = startOffset == null ? 0 : (int) (startOffset - FILE_HEADER_LITTLE_ENDIAN.length);
         		
         if ( delta > 0 ) {
@@ -220,10 +236,12 @@ public class FileReader
             if ( ! readOneEvent( event1 ) ) {
                 break;
             }
-            if ( event1.isAfterMillis( end ) ) {
+            if ( event1.isAfter( end ) ) {
             	break;
             }
-            visitor.visit( event1 );
+            if ( event1.isAfterOrAt( start ) ) {
+            	visitor.visit( event1 );
+            }
         } while ( true );
         
     }    

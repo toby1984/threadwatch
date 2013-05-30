@@ -191,14 +191,27 @@ public final class ThreadEvent
     	return (this.timestampNanos / 1000000) == (nanoseconds / 1000000);
     }
     
-    public boolean isAfterMillis(HiResTimestamp timestamp) 
+    public boolean isAfter(HiResTimestamp timestamp) 
     {
     	if ( this.timestampSeconds > timestamp.secondsSinceEpoch ) {
     		return true;
     	}
-		 int millis = (int) (timestampNanos / 1000000.0);
-		return millis*1000000 > timestamp.nanoseconds; 
+    	if ( this.timestampSeconds < timestamp.secondsSinceEpoch ) {
+    		return false;
+    	}    	
+		return this.timestampNanos > timestamp.nanoseconds;
     }
+    
+    public boolean isAfterOrAt(HiResTimestamp timestamp) 
+    {
+    	if ( this.timestampSeconds < timestamp.secondsSinceEpoch ) {
+    		return false;
+    	}    	    	
+    	if ( this.timestampSeconds > timestamp.secondsSinceEpoch ) {
+    		return true;
+    	}
+		return this.timestampNanos >= timestamp.nanoseconds;
+    }    
     
     public HiResTimestamp getMillisecondTimestamp() {
 		int millis = (int) (timestampNanos / 1000000.0);
