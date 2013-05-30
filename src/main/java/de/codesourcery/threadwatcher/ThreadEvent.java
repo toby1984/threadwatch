@@ -5,8 +5,6 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 
-import org.joda.time.DateTime;
-
 public final class ThreadEvent
 {
     public static final int THREAD_START = 0;
@@ -183,26 +181,27 @@ public final class ThreadEvent
     }
     
     public HiResTimestamp getTimestamp() {
-        return new HiResTimestamp(this.timestampSeconds,this.timestampNanos);
+        return new HiResTimestamp(this.timestampSeconds,this.timestampNanos,false);
     }
     
-    public static final class HiResTimestamp 
-    {
-        public final long secondsSinceEpoch;
-        public final long nanoseconds;
-        
-        private HiResTimestamp(long secondsSinceEpoch, long nanoseconds)
-        {
-            this.secondsSinceEpoch = secondsSinceEpoch;
-            this.nanoseconds = nanoseconds;
-        }
-
-        public DateTime toDateTime() 
-        {
-            // 1,000,000,000
-            System.out.println("Seconds: "+secondsSinceEpoch+" / nanos: "+nanoseconds+" ( = "+ (nanoseconds/1000000.0)+" millis)");
-            final int millis = (int) (nanoseconds / 1000000.0);
-            return new DateTime( secondsSinceEpoch*1000  ).plusMillis( millis );
-        }
+    public boolean isSameMillisecond(long secondsSinceEpoch,long nanoseconds) {
+    	if ( this.timestampSeconds != secondsSinceEpoch ) {
+    		return false;
+    	}
+    	return (this.timestampNanos / 1000000) == (nanoseconds / 1000000);
     }
+    
+    public boolean isAfterMillis(HiResTimestamp timestamp) 
+    {
+    	if ( this.timestampSeconds > timestamp.secondsSinceEpoch ) {
+    		return true;
+    	}
+		 int millis = (int) (timestampNanos / 1000000.0);
+		return millis*1000000 > timestamp.nanoseconds; 
+    }
+    
+    public HiResTimestamp getMillisecondTimestamp() {
+		int millis = (int) (timestampNanos / 1000000.0);
+		return new HiResTimestamp( timestampSeconds , millis*1000000 , true );
+    }    
 }
