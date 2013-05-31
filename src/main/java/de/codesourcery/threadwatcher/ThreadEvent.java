@@ -25,6 +25,8 @@ public final class ThreadEvent
     public static final int MAX_RECORD_SIZE= Math.max( Math.max( SIZEOF_THREAD_START_EVENT, SIZEOF_THREAD_DEATH_EVENT ) , SIZEOF_THREAD_STATE_CHANGE_EVENT);
     public static final int MIN_RECORD_SIZE= Math.min( Math.min( SIZEOF_THREAD_START_EVENT, SIZEOF_THREAD_DEATH_EVENT ) , SIZEOF_THREAD_STATE_CHANGE_EVENT);    
 
+    public static final int BUFFER_LENGTH = MAX_RECORD_SIZE * 1000;
+    
     public byte type;
     public int threadId;
     public long timestampSeconds;
@@ -35,14 +37,14 @@ public final class ThreadEvent
     protected void parseCommonFields(byte[] buffer,int offset) 
     {
         this.type = buffer[offset]; // offset 0
-        this.threadId = read16Bit( buffer          , offset + 4 );
-        this.timestampSeconds = read64Bit( buffer , offset + 8);
-        this.timestampNanos = read64Bit( buffer  , offset + 16);        
+        this.threadId = read16Bit( buffer          , (offset + 4) % BUFFER_LENGTH );
+        this.timestampSeconds = read64Bit( buffer , (offset + 8) % BUFFER_LENGTH);
+        this.timestampNanos = read64Bit( buffer  , (offset + 16) % BUFFER_LENGTH);        
     }
     
     protected int parseThreadStartEvent(byte[] buffer,int offset) {
         parseCommonFields(buffer,offset);
-        threadName = readString(buffer, offset+24, MAX_THREADNAME_LENGTH);
+        threadName = readString(buffer, (offset+24)%BUFFER_LENGTH, MAX_THREADNAME_LENGTH);
         return ThreadEvent.SIZEOF_THREAD_START_EVENT;
     }
     
@@ -53,7 +55,7 @@ public final class ThreadEvent
     
     protected int parseThreadStateChangeEvent(byte[] buffer,int offset) {
         parseCommonFields(buffer,offset);
-        threadStateMask = read32Bit(buffer, offset+24);
+        threadStateMask = read32Bit(buffer, (offset+24)%BUFFER_LENGTH);
         return ThreadEvent.SIZEOF_THREAD_STATE_CHANGE_EVENT;
     }    
     
@@ -118,29 +120,42 @@ public final class ThreadEvent
     protected final int read16Bit(byte[] buffer,int offset) 
     {
         final int low = buffer[offset] & 0xff;
-        final int hi = buffer[offset+1] & 0xff;
+        final int hi = buffer[(offset+1)%BUFFER_LENGTH] & 0xff;
         return (hi<<8)|low;
     }
 
-    protected final String readString(byte[] buffer,int offset,int maxLength) 
+    protected final String readString(byte[] buffer,int startOffset,int maxLength) 
     {
         int zeroByteIndex=-1;
         for ( int idx = 0 ; idx < maxLength ;idx++ ) 
         {
-            if ( buffer[offset+idx] == 0 ) {
-                zeroByteIndex = offset+idx;
+            final int offset = (startOffset+idx) % BUFFER_LENGTH;
+            if ( buffer[ offset ] == 0 ) {
+                zeroByteIndex = offset;
                 break;
             }
         }
         if ( zeroByteIndex == -1 ) {
             return null;
         }
-        return convert(buffer,offset,zeroByteIndex - offset );
+        return convert(buffer,startOffset,zeroByteIndex);
     }
     
-    private String convert(byte[] data,int offset,int length) 
+    private String convert(byte[] data,int offsetStart,int zeroByteIndex) 
     {
-        final ByteBuffer uniBuf = ByteBuffer.wrap(data,offset,length);  
+        final int len;
+        if ( zeroByteIndex >= offsetStart ) {
+            len = zeroByteIndex - offsetStart;
+        } else {
+            len = BUFFER_LENGTH-offsetStart+zeroByteIndex;
+        }
+        byte[] tmp = new byte[len];
+        for ( int i = 0 , ptr = offsetStart ; ptr != zeroByteIndex ; i++) 
+        {
+            tmp[i] = data[ ptr ];
+            ptr = (ptr+1) % BUFFER_LENGTH;
+        }
+        final ByteBuffer uniBuf = ByteBuffer.wrap(tmp,0,len);  
         final CharsetDecoder utf8Decoder = Charset.forName("UTF-8").newDecoder();  
         try {
             return utf8Decoder.decode(uniBuf).toString();
@@ -154,14 +169,14 @@ public final class ThreadEvent
     protected final int read32Bit(byte[] buffer,int offset) 
     {
         final int loWord = read16Bit(buffer,offset) & 0xffff;
-        final int hiWord = read16Bit(buffer,offset+2) & 0xffff;         
+        final int hiWord = read16Bit(buffer,(offset+2)%BUFFER_LENGTH) & 0xffff;         
         return ((hiWord<<16)|loWord);
     }
     
     protected final long read64Bit(byte[] buffer,int offset) 
     {
         final long  loWord = read32Bit(buffer,offset);
-        final long  hiWord = read32Bit(buffer,offset+4);         
+        final long  hiWord = read32Bit(buffer,(offset+4)%BUFFER_LENGTH);         
         return ((hiWord<<32)|loWord) & 0xffffffff;
     }    
 
@@ -201,6 +216,17 @@ public final class ThreadEvent
     	}    	
 		return this.timestampNanos > timestamp.nanoseconds;
     }
+    
+    public boolean isBefore(HiResTimestamp timestamp) 
+    {
+        if ( this.timestampSeconds > timestamp.secondsSinceEpoch ) {
+            return false;
+        }
+        if ( this.timestampSeconds < timestamp.secondsSinceEpoch ) {
+            return true;
+        }       
+        return this.timestampNanos < timestamp.nanoseconds;
+    }    
     
     public boolean isAfterOrAt(HiResTimestamp timestamp) 
     {

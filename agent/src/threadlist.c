@@ -114,7 +114,6 @@ void removeThreadListNode(jthread thread,void (*cleanUp)(ThreadListNode*,void*),
 
   if ( ! removed ) {
     fprintf(stderr,"ERROR: Failed to release %p\n",thread);
-    abort();
   }
 }
 

@@ -1,282 +1,247 @@
 package de.codesourcery.threadwatcher;
 
+import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
+import java.awt.Frame;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
-import java.awt.font.LineMetrics;
-import java.awt.geom.Rectangle2D;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 import javax.swing.JFrame;
-import javax.swing.JPanel;
 
-import de.codesourcery.threadwatcher.FileReader.FileVisitor;
+import de.codesourcery.threadwatcher.ui.HorizontalSelectionHelper;
+import de.codesourcery.threadwatcher.ui.StatisticsPanel;
+import de.codesourcery.threadwatcher.ui.ThreadPanel;
 
 public class Main 
 {
-	private static final int BAR_SPACING = 2;	
-	
-	private static final int Y_OFFSET = 35;
-	private static final int X_OFFSET = 10;
-	
-	public static enum Resolution 
-	{
-		ONE_MILLISECOND(1) {
+    private FileReader fileReader;
+    private ThreadPanel chartPanel;
+    private StatisticsPanel statisticsPanel;
+    
+    protected static enum SelectionType {
+        VIEW_INTERVAL,
+        INFO_INTERVAL;
+    }
+    
+    private SelectionType activeSelectionType = null;    
+    
+    private final HorizontalSelectionHelper<HiResInterval> viewIntervalChooser = new HorizontalSelectionHelper<HiResInterval>(Color.RED) {
 
-			@Override
-			public Resolution nextHigherResolution() {
-				return ONE_MILLISECOND;
-			}
+        private HiResInterval selection; 
+        
+        @Override
+        protected void selectionFinished(int start, int end)
+        {
+            HiResTimestamp xmin = chartPanel.viewToModel( start );
+            HiResTimestamp xmax = chartPanel.viewToModel( end );
 
-			@Override
-			public Resolution nextLowerResolution() {
-				return ONE_SECOND;
-			}
-		},
-		ONE_SECOND(1000) {
+            final long windowDurationMillis = (long) new HiResInterval( xmin,xmax ).getDurationInMilliseconds();
+            if ( windowDurationMillis > 0 ) 
+            {
+                selection = new HiResInterval( xmin , xmax );
+                System.out.println("*************************");
+                System.out.println("* NEW INTERVAL: "+selection+" ("+selection.getDurationInMilliseconds()+")");
+                System.out.println("*************************");
+                chartPanel.setInterval( xmin , windowDurationMillis );
+            }
+        }
 
-			@Override
-			public Resolution nextHigherResolution() {
-				return ONE_MILLISECOND;
-			}
+        @Override
+        protected int getMinX() { return chartPanel.getXOffset(); }
 
-			@Override
-			public Resolution nextLowerResolution() {
-				return ONE_MINUTE;
-			}},
-		ONE_MINUTE(60*1000) {
+        @Override
+        protected int getMaxX() { return chartPanel.getWidth(); }
 
-			@Override
-			public Resolution nextHigherResolution() {
-				return ONE_SECOND;
-			}
+        @Override
+        protected HiResInterval getLastSelectionModelObject()
+        {
+            return selection;
+        }
+    };
+    
+    private final HorizontalSelectionHelper<HiResInterval> infoIntervalChooser = new HorizontalSelectionHelper<HiResInterval>(Color.YELLOW) {
 
-			@Override
-			public Resolution nextLowerResolution() {
-				return ONE_MINUTE;
-			}};
-		
-		private final int milliseconds;
+        private HiResInterval selection;
+        
+        @Override
+        protected void selectionFinished(int start, int end)
+        {
+            HiResTimestamp xmin = chartPanel.viewToModel( start );
+            HiResTimestamp xmax = chartPanel.viewToModel( end );
+            
+            HiResInterval tmp = new HiResInterval( xmin , xmax );
+            if ( tmp.getDurationInMilliseconds() >= 1.0 ) {
+                selection = tmp;
+                System.out.println("*************************");
+                System.out.println("* NEW INFO INTERVAL: "+selection+" ("+selection.getDurationInMilliseconds()+")");
+                System.out.println("*************************");
+                chartPanel.repaint();
+                try {
+                    statisticsPanel.setInterval( tmp );
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        
+        @Override
+        protected int getMinX() { return chartPanel.getXOffset(); }
 
-		private Resolution(int milliseconds) {
-			this.milliseconds = milliseconds;
-		}
-		
-		public int getMilliseconds() {
-			return milliseconds;
-		}
-		
-		public abstract Resolution nextHigherResolution();
-		public abstract Resolution nextLowerResolution();
-	}
-	
+        @Override
+        protected int getMaxX() { return chartPanel.getWidth(); }
+
+        @Override
+        protected  HiResInterval getLastSelectionModelObject()
+        {
+            return selection;
+        }
+    };    
+    
+    private final MouseAdapter mouseListener = new MouseAdapter() 
+    {
+        public void mousePressed(MouseEvent e) 
+        {
+            if ( activeSelectionType != null ) {
+                return;
+            }
+            
+            if ( e.getButton() == MouseEvent.BUTTON1 ) 
+            {
+                activeSelectionType = SelectionType.VIEW_INTERVAL;
+            } else if ( e.getButton() == MouseEvent.BUTTON3 ) {
+                activeSelectionType = SelectionType.INFO_INTERVAL;
+            } 
+        }
+        public void mouseReleased(java.awt.event.MouseEvent e) 
+        {
+            if ( e.getButton() == MouseEvent.BUTTON1 || e.getButton() == MouseEvent.BUTTON3 ) 
+            {
+                if ( activeSelectionType == SelectionType.INFO_INTERVAL) 
+                {
+                    infoIntervalChooser.stopSelecting( e.getPoint() , chartPanel.getGraphics() , chartPanel.getHeight() );
+                    activeSelectionType = null;
+                } else if ( activeSelectionType == SelectionType.VIEW_INTERVAL) {
+                    viewIntervalChooser.stopSelecting( e.getPoint() , chartPanel.getGraphics() , chartPanel.getHeight() );
+                    activeSelectionType = null;
+                }
+            } 
+        }           
+
+        public void mouseDragged(java.awt.event.MouseEvent e) 
+        {
+            if ( activeSelectionType != null ) 
+            {
+                switch (activeSelectionType)
+                {
+                    case INFO_INTERVAL:
+                        infoIntervalChooser.updateSelection( e.getPoint() , chartPanel.getGraphics(), chartPanel.getHeight() );                        
+                        break;
+                    case VIEW_INTERVAL:
+                        viewIntervalChooser.updateSelection( e.getPoint() , chartPanel.getGraphics(), chartPanel.getHeight() );
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+    };    
+    
+    final KeyAdapter keyListener = new KeyAdapter() 
+    {
+        @Override
+        public void keyPressed(KeyEvent e)
+        {
+            if ( e.getKeyCode() == KeyEvent.VK_ESCAPE ) 
+            {
+                if ( activeSelectionType != null ) 
+                {
+                    switch (activeSelectionType)
+                    {
+                        case INFO_INTERVAL:
+                            infoIntervalChooser.clearSelection( chartPanel.getGraphics() , chartPanel.getHeight() );
+                            activeSelectionType = null;
+                            break;
+                        case VIEW_INTERVAL:
+                            viewIntervalChooser.clearSelection( chartPanel.getGraphics() , chartPanel.getHeight() );
+                            activeSelectionType = null;
+                            break;
+                        default:
+                            break;
+                    }                    
+                }
+            }
+        }
+        
+        @Override
+        public void keyTyped(KeyEvent e) 
+        {
+            System.out.println("Typed: "+e.getKeyChar());
+            if ( e.getKeyChar() == 'd' ) 
+            {
+                chartPanel.stepForward();
+            } else if ( e.getKeyChar() == 'a' ) {
+                chartPanel.stepBackward();
+            } else if ( e.getKeyChar() == 's' ) 
+            {
+                long newIntervalLengthMillis = (long) (chartPanel.getIntervalLengthMillis()*2.0);
+                if ( newIntervalLengthMillis > 0 ) {
+                    chartPanel.setIntervalLength( newIntervalLengthMillis);
+                }
+            } else if ( e.getKeyChar() == 'w' ) 
+            {
+                long newIntervalLengthMillis = (long) (chartPanel.getIntervalLengthMillis()/2.0);
+                if ( newIntervalLengthMillis > 0 ) {
+                    chartPanel.setIntervalLength( newIntervalLengthMillis);
+                }                   
+            }
+        }
+    };    
+    
     public static void main(String[] args) throws IOException
     {
         new Main().run(new File("/tmp/threadwatcher.out" ) );
     }
-
+    
     public void run(File file) throws IOException
     {
+        fileReader = new FileReader(file);
+        
         final JFrame frame = new JFrame("Thread-Watcher V0.0");
         frame.setDefaultCloseOperation( JFrame.EXIT_ON_CLOSE);
-        final RenderPanel panel = new RenderPanel(new FileReader(file) , Resolution.ONE_SECOND);
-        panel.setPreferredSize(new Dimension(640,480 ) );
-        frame.add( panel );
+        
+        chartPanel = new ThreadPanel(fileReader , infoIntervalChooser , fileReader.getInterval().start , 1000 );
+        chartPanel.setPreferredSize(new Dimension(640,480 ) );
+        frame.getContentPane().add( chartPanel );
         frame.pack();
         frame.setVisible( true );
         
-        final KeyAdapter keyListener = new KeyAdapter() 
-        {
-        	@Override
-        	public void keyTyped(KeyEvent e) 
-        	{
-        		System.out.println("Typed: "+e.getKeyChar());
-        		if ( e.getKeyChar() == 'd' ) {
-        			panel.advanceByResolution();
-        		} else if ( e.getKeyChar() == 'a' ) {
-        			panel.goBackByResolution();
-        		} else if ( e.getKeyChar() == 'w' ) {
-        			panel.nextHigherResolution();
-        		} else if ( e.getKeyChar() == 's' ) {
-        			panel.nextLowerResolution();
-        		}
-        	}
-		};
-		frame.addKeyListener( keyListener );
+        chartPanel.addMouseListener( mouseListener );
+        chartPanel.addMouseMotionListener( mouseListener );
+        
+        chartPanel.setFocusable(true);
+        chartPanel.addKeyListener( keyListener );
+
+		// setup statistics frame
+		JFrame statisticsFrame = new JFrame("Statistics");
+		statisticsFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		
+        statisticsPanel = new StatisticsPanel(fileReader);
+        statisticsPanel.setPreferredSize( new Dimension(400,100 ) );
+        frame.getContentPane().add( statisticsPanel , BorderLayout.NORTH );
+        
+        statisticsPanel.setFocusable(true);
+        statisticsPanel.addKeyListener( keyListener );     
+        
+		statisticsFrame.getContentPane().add( statisticsPanel );
+		
+		statisticsFrame.setLocation( frame.getLocation().x + frame.getWidth()+2 , frame.getLocation().y );
+		statisticsFrame.pack();
+        statisticsFrame.setVisible( true );		
     }
     
-    protected static final class RenderPanel extends JPanel 
-    {
-        private FileReader reader;
-        private HiResInterval interval;
-        private Resolution resolution;
-        
-        public RenderPanel(FileReader reader,Resolution resolution) 
-        {
-            this.reader = reader;
-            this.resolution = resolution;
-            recalcInterval(reader.getInterval().start);
-            setBackground(Color.WHITE);
-        }
-        
-        private void recalcInterval(HiResTimestamp start) 
-        {
-            final HiResTimestamp end = start.plusMilliseconds( resolution.getMilliseconds() );
-            System.out.println( start+" plus "+resolution.getMilliseconds()+" => "+end);
-			interval = new HiResInterval( start , end );
-        }
-        
-        public void nextLowerResolution() {
-        	resolution=resolution.nextLowerResolution();
-        	recalcInterval(this.interval.start);
-        	repaint();
-		}
-
-		public void nextHigherResolution() {
-			resolution=resolution.nextHigherResolution();
-			recalcInterval(this.interval.start);
-			repaint();
-		}
-
-		public void advanceByResolution() 
-        {
-        	interval = interval.rollByMilliseconds( resolution.getMilliseconds() );
-        	repaint();
-        }
-        
-        public void goBackByResolution() 
-        {
-        	interval = interval.rollByMilliseconds( -resolution.getMilliseconds() );
-        	repaint();
-        }        
-        
-        public Resolution getResolution() {
-			return resolution;
-		}
-        
-        public void setResolution(Resolution resolution) {
-			this.resolution = resolution;
-		}
-        
-        @Override
-        protected void paintComponent(Graphics g)
-        {
-            super.paintComponent(g);
-            
-            g.setColor(Color.BLACK);
-            g.drawString( interval.start+" - "+interval.end+" / "+resolution , 5,10 );
-            
-            try 
-            {
-				reader.visit(new RenderingVisitor((Graphics2D) g),interval.start , interval.end );
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-        }
-        
-        protected final class RenderingVisitor extends FileVisitor 
-        {
-        	private final Graphics2D graphics;
-        	private final double scaleX;
-        	private final Map<Integer,Integer> threadYOffsetMap=new HashMap<>();
-        	private final int x1;
-        	private final int BAR_HEIGHT;
-        	private final int xOffset;
-        	
-        	public RenderingVisitor(Graphics2D graphics) 
-        	{
-        		this.graphics  = graphics;
-        		System.out.println("Interval: "+interval+" has "+interval.getDurationInMilliseconds()+" millis");
-        		this.scaleX = (getWidth()-X_OFFSET) / interval.getDurationInMilliseconds();
-        		
-        		System.out.println("Displaying interval: "+interval);
-        		final Map<Integer, String> threadNamesByID = reader.getThreadNamesByID();
-            	final List<Integer> threadIds = new ArrayList<>( reader.getAliveThreadsInInterval( interval ) );
-            	System.out.println("Alive Threads in interval: "+interval+" : "+threadIds);
-            	
-            	Collections.sort( threadIds , new Comparator<Integer>() {
-
-					@Override
-					public int compare(Integer o1, Integer o2) 
-					{
-						return threadNamesByID.get(o1).toLowerCase().compareTo(threadNamesByID.get(o2).toLowerCase());
-					}
-				});
-            	
-            	double longestNameWidth = 0;
-            	for ( int threadId : threadIds ) {
-            		final String threadName = threadNamesByID.get(threadId);
-            		Rectangle2D stringBounds = graphics.getFontMetrics().getStringBounds( threadName , graphics);
-            		if ( stringBounds.getWidth() > longestNameWidth ) {
-            			longestNameWidth = stringBounds.getWidth();
-            		}
-            	}
-            	xOffset = (int) Math.round( X_OFFSET+longestNameWidth*1.1 );
-            	
-            	Rectangle2D stringBounds = graphics.getFontMetrics().getStringBounds("XYZ", graphics);
-				BAR_HEIGHT = (int) Math.ceil( stringBounds.getHeight()*1.5 );
-            	
-            	// assign Y coordinates
-            	graphics.setColor(Color.BLACK);
-            	int y = Y_OFFSET;
-            	for ( int threadId : threadIds ) 
-            	{
-            		final String threadName = threadNamesByID.get(threadId);
-            		LineMetrics metrics = graphics.getFontMetrics().getLineMetrics(threadName , graphics);
-            		final int yCenter = (int) Math.round( y+(BAR_HEIGHT/2.0)+metrics.getDescent() );
-            		graphics.drawString( threadName,0,yCenter);            		
-            		threadYOffsetMap.put( threadId , y );
-            		y += BAR_SPACING+BAR_HEIGHT;
-            	}
-            	System.out.println("Y-Offset map: "+threadYOffsetMap);
-            	x1 = (int) Math.round( interval.getDurationInMilliseconds() * scaleX );
-        	}
-        	
-			@Override
-			public boolean visit(ThreadEvent event) 
-			{
-				Integer y0 = threadYOffsetMap.get( event.threadId );
-				if ( y0 == null ) {
-					System.out.println("Ignored thread ID: "+event.threadId);
-					return true;
-				}
-				final double durationMillis = HiResInterval.getDurationInMilliseconds( interval.start , event.getTimestamp() );
-				int x0 = xOffset + (int) Math.round( durationMillis*scaleX);
-				
-				final int state = event.threadStateMask;
-				Color color=Color.BLACK;
-				if ( JVMTIThreadState.ALIVE.isSet( state ) ) 
-				{
-					if ( JVMTIThreadState.SUSPENDED.isSet( state ) ) 
-					{
-						color = Color.GRAY;
-					} 
-					else if ( JVMTIThreadState.WAITING.isSet( state ) ) 
-					{
-						color = Color.YELLOW;
-					} 
-					else if ( JVMTIThreadState.BLOCKED_ON_MONITOR_ENTER.isSet( state ) ) 
-					{
-						color = Color.RED;
-					} else if ( JVMTIThreadState.RUNNABLE.isSet( state ) ) {
-						color = Color.GREEN;
-					}
-				} 
-
-				graphics.setColor( color );
-				graphics.fillRect( x0 ,y0 , x1 - x0 , BAR_HEIGHT );
-				return true;
-			}
-        }
-    }
 }

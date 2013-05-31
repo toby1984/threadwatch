@@ -1,6 +1,8 @@
 package de.codesourcery.threadwatcher;
 
 import org.joda.time.DateTime;
+import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.DateTimeFormatterBuilder;
 
 public final class HiResInterval {
 
@@ -29,11 +31,17 @@ public final class HiResInterval {
 			   end.compareTo( timestamp ) >0;
 	}
 	
+    public boolean containsEndInclusive(HiResTimestamp timestamp) 
+    {
+        return start.compareTo( timestamp ) <= 0 &&
+               end.compareTo( timestamp ) >= 0;
+    }	
+	
 	public HiResInterval rollBySeconds(int seconds) {
 		return new HiResInterval( start.plusSeconds( seconds ) , end.plusSeconds( seconds ) );
 	}
 	
-	public HiResInterval rollByMilliseconds(int millis) 
+	public HiResInterval rollByMilliseconds(long millis) 
 	{
 		return new HiResInterval( start.plusMilliseconds( millis ) , end.plusMilliseconds( millis ) );
 	}	
@@ -43,19 +51,22 @@ public final class HiResInterval {
 		return getDurationInMilliseconds(this.start,this.end);
 	}
 	
-	public static double getDurationInMilliseconds(HiResTimestamp start,HiResTimestamp end) 
+    public static double getDurationInMilliseconds(HiResTimestamp start,HiResTimestamp end) 
+    {
+        if ( start.compareTo( end ) > 0 ) {
+            throw new IllegalArgumentException( "start "+start+" > end "+end);
+        }
+        return getDurationInMilliseconds(start.secondsSinceEpoch , start.nanoseconds , end.secondsSinceEpoch , end.nanoseconds );
+    }
+    
+	public static double getDurationInMilliseconds(long startSeconds,long startNanos,long endSeconds,long endNanos) 
 	{
-		if ( start.compareTo( end ) > 0 ) {
-			throw new IllegalArgumentException( "start "+start+" > end "+end);
-		}
-		long deltaSeconds = end.secondsSinceEpoch - start.secondsSinceEpoch;
-		long deltaNano = end.nanoseconds >= start.nanoseconds ? end.nanoseconds-start.nanoseconds : start.nanoseconds - end.nanoseconds;
-		if ( deltaNano < 0 ) {
-			throw new RuntimeException("getDurationMillis( "+start+" - "+end+" ) = "+deltaNano);
-		}
-		double result = deltaSeconds*1000.0 + deltaNano/1000000.0;
+		long nanos1 = startSeconds*1000000000+startNanos;
+		long nanos2 = endSeconds*1000000000+endNanos;
+		long deltaNano = nanos2-nanos1;
+		double result = deltaNano/1000000;
 		if ( result < 0 ) {
-			throw new RuntimeException("getDurationMillis( "+start+" - "+end+" ) = "+deltaNano);
+			throw new RuntimeException("getDurationMillis( "+startSeconds+"."+startNanos+" - "+endSeconds+"."+endNanos+" ) = "+deltaNano);
 		}
 		return result;
 	}
@@ -84,4 +95,26 @@ public final class HiResInterval {
 		return false;
 	}
 	
+	public String toUIString()
+	{
+        DateTimeFormatter DF = new DateTimeFormatterBuilder()
+        .appendYear(4, 4)
+        .appendLiteral('-')                
+        .appendMonthOfYear(1)
+        .appendLiteral('-')                
+        .appendDayOfMonth(1)
+        .appendLiteral(" ")
+        .appendHourOfDay(2)
+        .appendLiteral(':')                
+        .appendMinuteOfHour(2)
+        .appendLiteral(':')
+        .appendSecondOfMinute(2)
+        .appendLiteral('.')
+        .appendMillisOfSecond(1)
+        .toFormatter();
+
+        final String start = DF.print( this.start.toDateTime());
+        final String end = DF.print( this.end.toDateTime());
+        return start+" - "+end+" [ "+getDurationInMilliseconds()+" ms ]";
+	}
 }

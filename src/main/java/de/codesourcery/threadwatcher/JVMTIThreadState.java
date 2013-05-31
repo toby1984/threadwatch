@@ -58,6 +58,11 @@ public enum JVMTIThreadState
         return result;
     }
     
+    public int getBitMask()
+    {
+        return mask;
+    }
+    
     public boolean isSet(int threadState) {
         return (threadState&mask) != 0;
     }

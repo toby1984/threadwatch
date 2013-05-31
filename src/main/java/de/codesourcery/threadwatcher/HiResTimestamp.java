@@ -27,6 +27,22 @@ public final class HiResTimestamp implements Comparable<HiResTimestamp>
         this.truncatedToMillis = truncatedToMillis;
     }
     
+    public static HiResTimestamp min(HiResTimestamp t1,HiResTimestamp t2) 
+    {
+        if ( t1.compareTo( t2 ) <= 0 ) {
+            return t1;
+        }
+        return t2;
+    }
+    
+    public static HiResTimestamp max(HiResTimestamp t1,HiResTimestamp t2) 
+    {
+        if ( t1.compareTo( t2 ) >= 0 ) {
+            return t1;
+        }
+        return t2;
+    }    
+    
     @Override
     public String toString() {
     	return toDateTime()+" (millis: "+truncatedToMillis+" | "+nanoseconds+")";
@@ -37,14 +53,14 @@ public final class HiResTimestamp implements Comparable<HiResTimestamp>
     	return new HiResTimestamp(this.secondsSinceEpoch+seconds , this.nanoseconds , this.truncatedToMillis );
     }
     
-    public HiResTimestamp plusMilliseconds(int millis) 
+    public HiResTimestamp plusMilliseconds(long millis) 
     {
     	int seconds = (int) (millis/1000.0);
     	long m = (long) (millis - seconds*1000.0);
     	long newNanos = this.nanoseconds + m*1000000;
     	if ( newNanos > 1000000000 ) 
     	{
-    		long deltaSeconds = (long) (newNanos / 1000000000);
+    		long deltaSeconds = newNanos / 1000000000;
     		seconds += deltaSeconds;
     		newNanos = newNanos - deltaSeconds*1000000000;
     	} else if ( newNanos < 0 ) {
