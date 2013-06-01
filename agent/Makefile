@@ -1,8 +1,8 @@
 CC=/usr/bin/gcc
 CFLAGS=-g -Wall -Wformat=0 -fPIC -O0
-SRC=src
+SRC=qtcreator/src
 INCLUDES=-I/usr/local/java/include -I/usr/local/java/include/linux -Isrc
-MYINCLUDES=src
+MYINCLUDES=qtcreator/src
 TARGET=target
 JAVA=java
 JAVAC=javac

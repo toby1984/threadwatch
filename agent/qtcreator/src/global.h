@@ -7,6 +7,8 @@
 // number of data records that may be kept in the ringbuffer
 #define SAMPLE_RINGBUFFER_SIZE 10240
 
+#define GETTIME_BENCHMARK_LOOPCOUNT 35000000
+
 #define FILEHEADER_MAGIC 0xdeadbeef
 
 // time in millis the writer thread will sleep if the ringbuffer is empty

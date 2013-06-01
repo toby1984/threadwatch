@@ -25,6 +25,8 @@ static jvmtiEnv *jvmti = NULL;
 
 static jrawMonitorID lock;
 
+static int getTimeExecNanos=0;
+
 /* Get name for JVMTI error code */
 static char * getErrorName(jvmtiEnv *jvmti, jvmtiError errnum)
 {
@@ -337,6 +339,53 @@ static int populateThreadDeathRecord(DataRecord *record,ThreadListNode *current)
     return 1;    
 }
 
+static int benchmarkGetTime() {
+
+    unsigned long i = GETTIME_BENCHMARK_LOOPCOUNT;
+    struct timespec start;
+    struct timespec end;
+    struct timespec dummy;
+
+    double deltaSeconds=0;
+    double deltaNanos=0;
+    double execTime;
+
+    if ( clock_gettime( CLOCK_REALTIME , &start ) ) {
+      fprintf(stderr,"ERROR: Failed to get current time?");
+      return 1;
+    }
+
+    for ( ; i > 0 ; i-- )
+    {
+      clock_gettime( CLOCK_REALTIME , &dummy);
+    }
+
+    if ( clock_gettime( CLOCK_REALTIME , &end) ) {
+      fprintf(stderr,"ERROR: Failed to get current time?");
+      return 1;
+    }
+
+    deltaSeconds = end.tv_sec - start.tv_sec;
+    if ( deltaSeconds == 0 ) {
+        printf("case #1\n");
+        deltaNanos = end.tv_nsec-start.tv_nsec;
+        execTime = deltaNanos / (double) GETTIME_BENCHMARK_LOOPCOUNT;
+    } else {
+        printf("case #2\n");
+        deltaNanos = 1000000000.0-start.tv_nsec + end.tv_nsec;
+        while ( deltaNanos > 1000000000.0 )
+        {
+            printf("loop\n");
+            deltaSeconds++;
+            deltaNanos -= 1000000000.0;
+        }
+        execTime = (deltaSeconds*1000000000.0 - deltaNanos) / (double) GETTIME_BENCHMARK_LOOPCOUNT;
+    }
+    printf("delta seconds: %f / delta nanos: %f\n",deltaSeconds,deltaNanos);
+    printf("Calling clock_gettime() takes %f nanoseconds\n",execTime);
+    return 1;
+}
+
 static void JNICALL onThreadStart(jvmtiEnv *jvmti_env, JNIEnv* jni_env, jthread thread) 
 { 
     jthread threadGlobalRef;    
@@ -344,6 +393,10 @@ static void JNICALL onThreadStart(jvmtiEnv *jvmti_env, JNIEnv* jni_env, jthread 
     ThreadListNode *newNode;
 
     enterAgentMonitor(jvmti_env);
+
+    if ( getTimeExecNanos == 0 ) {
+        getTimeExecNanos = benchmarkGetTime();
+    }
            
     // START: Critical section
     (*jvmti)->GetThreadInfo(jvmti,thread,&threadInfo);
