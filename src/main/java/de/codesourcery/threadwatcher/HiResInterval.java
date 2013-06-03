@@ -61,9 +61,9 @@ public final class HiResInterval {
     
 	public static double getDurationInMilliseconds(long startSeconds,long startNanos,long endSeconds,long endNanos) 
 	{
-		long nanos1 = startSeconds*1000000000+startNanos;
-		long nanos2 = endSeconds*1000000000+endNanos;
-		long deltaNano = nanos2-nanos1;
+		double nanos1 = startSeconds*1000000000+startNanos;
+		double nanos2 = endSeconds*1000000000+endNanos;
+		double deltaNano = nanos2-nanos1;
 		double result = deltaNano/1000000;
 		if ( result < 0 ) {
 			throw new RuntimeException("getDurationMillis( "+startSeconds+"."+startNanos+" - "+endSeconds+"."+endNanos+" ) = "+deltaNano);

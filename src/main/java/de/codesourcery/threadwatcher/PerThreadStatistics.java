@@ -37,13 +37,25 @@ public final class PerThreadStatistics
         if ( lastThreadState != null ) 
         {
             Double total = sumDurationInMillis.get( lastThreadState );
-            total = total + HiResInterval.getDurationInMilliseconds( lastEventSeconds,lastEventNanos , event.timestampSeconds,event.timestampNanos);;
+            total = total + HiResInterval.getDurationInMilliseconds( lastEventSeconds,lastEventNanos , event.timestampSeconds,event.timestampNanos);
             sumDurationInMillis.put( lastThreadState , total );
-            containsData=true;
         }
         lastThreadState = UIConstants.getLegendItemForEvent( event );
         lastEventSeconds = event.timestampSeconds;
         lastEventNanos = event.timestampNanos;
+        containsData=true;        
+    }
+    
+    public void finish(HiResInterval statisticsInterval) 
+    {
+        if ( lastThreadState != null ) 
+        {
+            final HiResTimestamp end = statisticsInterval.end;
+            Double total = sumDurationInMillis.get( lastThreadState );
+            total = total + HiResInterval.getDurationInMilliseconds( lastEventSeconds,lastEventNanos , end.secondsSinceEpoch,end.nanoseconds);
+            sumDurationInMillis.put( lastThreadState , total );            
+            lastThreadState = null;
+        }
     }
     
     @Override

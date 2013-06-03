@@ -1,9 +1,10 @@
 package de.codesourcery.threadwatcher;
 
-import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Cursor;
 import java.awt.Dimension;
-import java.awt.Frame;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
@@ -12,8 +13,10 @@ import java.io.File;
 import java.io.IOException;
 
 import javax.swing.JFrame;
+import javax.swing.JScrollPane;
 
 import de.codesourcery.threadwatcher.ui.HorizontalSelectionHelper;
+import de.codesourcery.threadwatcher.ui.HorizontalSelectionHelper.DraggedMarker;
 import de.codesourcery.threadwatcher.ui.StatisticsPanel;
 import de.codesourcery.threadwatcher.ui.ThreadPanel;
 
@@ -44,9 +47,6 @@ public class Main
             if ( windowDurationMillis > 0 ) 
             {
                 selection = new HiResInterval( xmin , xmax );
-                System.out.println("*************************");
-                System.out.println("* NEW INTERVAL: "+selection+" ("+selection.getDurationInMilliseconds()+")");
-                System.out.println("*************************");
                 chartPanel.setInterval( xmin , windowDurationMillis );
             }
         }
@@ -62,6 +62,11 @@ public class Main
         {
             return selection;
         }
+
+        @Override
+        protected void selectionCleared()
+        {
+        }
     };
     
     private final HorizontalSelectionHelper<HiResInterval> infoIntervalChooser = new HorizontalSelectionHelper<HiResInterval>(Color.YELLOW) {
@@ -75,11 +80,9 @@ public class Main
             HiResTimestamp xmax = chartPanel.viewToModel( end );
             
             HiResInterval tmp = new HiResInterval( xmin , xmax );
-            if ( tmp.getDurationInMilliseconds() >= 1.0 ) {
+            if ( tmp.getDurationInMilliseconds() >= 1.0 ) 
+            {
                 selection = tmp;
-                System.out.println("*************************");
-                System.out.println("* NEW INFO INTERVAL: "+selection+" ("+selection.getDurationInMilliseconds()+")");
-                System.out.println("*************************");
                 chartPanel.repaint();
                 try {
                     statisticsPanel.setInterval( tmp );
@@ -87,6 +90,38 @@ public class Main
                     e.printStackTrace();
                 }
             }
+        }
+        
+        public HorizontalSelectionHelper.SelectedInterval setLastSelection(HorizontalSelectionHelper.SelectedInterval interval) 
+        {
+            super.setLastSelection( interval );
+            
+            if ( interval == null ) {
+                selection = null;
+            } 
+            else 
+            {
+                int min = Math.min( interval.xMin , interval.xMax );
+                int max = Math.max( interval.xMin , interval.xMax );
+                
+                HiResTimestamp tmin = chartPanel.viewToModel( min );
+                HiResTimestamp tmax = chartPanel.viewToModel( max );                
+                HiResInterval tmp = new HiResInterval( tmin , tmax );
+                if ( tmp.getDurationInMilliseconds() >= 1.0 ) 
+                {
+                    selection = tmp;
+                } else {
+                    selection = null;
+                }
+            }
+            
+            try 
+            {
+                statisticsPanel.setInterval( this.selection );
+            } catch (IOException e) {
+                e.printStackTrace();
+            }             
+            return interval;
         }
         
         @Override
@@ -100,6 +135,13 @@ public class Main
         {
             return selection;
         }
+
+        @Override
+        protected void selectionCleared()
+        {
+            setLastSelection( null );
+            chartPanel.repaint();
+        }
     };    
     
     private final MouseAdapter mouseListener = new MouseAdapter() 
@@ -112,15 +154,39 @@ public class Main
             
             if ( e.getButton() == MouseEvent.BUTTON1 ) 
             {
-                activeSelectionType = SelectionType.VIEW_INTERVAL;
-            } else if ( e.getButton() == MouseEvent.BUTTON3 ) {
+                if ( infoIntervalChooser.isCloseToLastSelectionStart( e.getPoint() ) ) 
+                {
+                    setSelectionCursor();
+                    infoIntervalChooser.setDraggedMarker(DraggedMarker.START );
+                } 
+                else if ( infoIntervalChooser.isCloseToLastSelectionEnd( e.getPoint() ) ) 
+                {
+                    setSelectionCursor();   
+                    infoIntervalChooser.setDraggedMarker(DraggedMarker.END );
+                } 
+                else 
+                {
+                    infoIntervalChooser.setDraggedMarker( DraggedMarker.NONE );                    
+                    activeSelectionType = SelectionType.VIEW_INTERVAL;
+                }
+            } 
+            else if ( e.getButton() == MouseEvent.BUTTON3 ) 
+            {
                 activeSelectionType = SelectionType.INFO_INTERVAL;
             } 
         }
+        
         public void mouseReleased(java.awt.event.MouseEvent e) 
         {
             if ( e.getButton() == MouseEvent.BUTTON1 || e.getButton() == MouseEvent.BUTTON3 ) 
             {
+                if ( infoIntervalChooser.getDraggedMarker() != DraggedMarker.NONE) 
+                {
+                    setDefaultCursor();
+                    infoIntervalChooser.setDraggedMarker( DraggedMarker.NONE );
+                    return;
+                }
+                
                 if ( activeSelectionType == SelectionType.INFO_INTERVAL) 
                 {
                     infoIntervalChooser.stopSelecting( e.getPoint() , chartPanel.getGraphics() , chartPanel.getHeight() );
@@ -130,10 +196,44 @@ public class Main
                     activeSelectionType = null;
                 }
             } 
-        }           
-
+        }       
+        
+        protected void setDefaultCursor() {
+            chartPanel.setCursor( Cursor.getPredefinedCursor( Cursor.DEFAULT_CURSOR ) );            
+        }
+        
+        protected void setSelectionCursor() 
+        {
+            chartPanel.setCursor( Cursor.getPredefinedCursor( Cursor.HAND_CURSOR ) );
+        }        
+        
+        public void mouseMoved(java.awt.event.MouseEvent e) 
+        {
+            if ( infoIntervalChooser.getDraggedMarker() == DraggedMarker.NONE && 
+                 infoIntervalChooser.getDragMarkerForPoint( e.getPoint() ) != DraggedMarker.NONE )
+            {
+                setSelectionCursor();
+            } else {
+                setDefaultCursor();
+            }
+        }
+        
         public void mouseDragged(java.awt.event.MouseEvent e) 
         {
+            switch ( infoIntervalChooser.getDraggedMarker() )
+            {
+                case START:
+                    infoIntervalChooser.setLastSelection(infoIntervalChooser.getLastSelection().withMinX( e.getPoint().x ) );
+                    chartPanel.repaint();
+                    return;
+                case END:
+                    infoIntervalChooser.setLastSelection(infoIntervalChooser.getLastSelection().withMaxX( e.getPoint().x ) );
+                    chartPanel.repaint();
+                    return;
+                    default:
+                        // $$FALL-THROUGH $$
+            }
+            
             if ( activeSelectionType != null ) 
             {
                 switch (activeSelectionType)
@@ -173,6 +273,10 @@ public class Main
                         default:
                             break;
                     }                    
+                } 
+                else 
+                {
+                    infoIntervalChooser.clearSelection( chartPanel.getGraphics() , chartPanel.getHeight() );                    
                 }
             }
         }
@@ -180,7 +284,6 @@ public class Main
         @Override
         public void keyTyped(KeyEvent e) 
         {
-            System.out.println("Typed: "+e.getKeyChar());
             if ( e.getKeyChar() == 'd' ) 
             {
                 chartPanel.stepForward();
@@ -192,7 +295,8 @@ public class Main
                 if ( newIntervalLengthMillis > 0 ) {
                     chartPanel.setIntervalLength( newIntervalLengthMillis);
                 }
-            } else if ( e.getKeyChar() == 'w' ) 
+            } 
+            else if ( e.getKeyChar() == 'w' ) 
             {
                 long newIntervalLengthMillis = (long) (chartPanel.getIntervalLengthMillis()/2.0);
                 if ( newIntervalLengthMillis > 0 ) {
@@ -216,7 +320,14 @@ public class Main
         
         chartPanel = new ThreadPanel(fileReader , infoIntervalChooser , fileReader.getInterval().start , 1000 );
         chartPanel.setPreferredSize(new Dimension(640,480 ) );
-        frame.getContentPane().add( chartPanel );
+        frame.getContentPane().setLayout(new GridBagLayout());
+        GridBagConstraints cnstrs = new GridBagConstraints();
+        cnstrs.fill = GridBagConstraints.BOTH;
+        cnstrs.gridwidth=GridBagConstraints.REMAINDER;
+        cnstrs.gridheight=GridBagConstraints.REMAINDER;
+        cnstrs.weightx=1.0;
+        cnstrs.weighty=1.0;
+        frame.getContentPane().add( new JScrollPane( chartPanel ) , cnstrs );
         frame.pack();
         frame.setVisible( true );
         
@@ -232,16 +343,24 @@ public class Main
 		
         statisticsPanel = new StatisticsPanel(fileReader);
         statisticsPanel.setPreferredSize( new Dimension(400,100 ) );
-        frame.getContentPane().add( statisticsPanel , BorderLayout.NORTH );
+        statisticsPanel.setSize( new Dimension(400,100 ) );
+        
+        cnstrs = new GridBagConstraints();
+        cnstrs.fill = GridBagConstraints.BOTH;
+        cnstrs.gridwidth=GridBagConstraints.REMAINDER;
+        cnstrs.gridheight=GridBagConstraints.REMAINDER;
+        cnstrs.weightx=1.0;
+        cnstrs.weighty=1.0;  
+        
+        statisticsFrame.getContentPane().setLayout( new GridBagLayout() );
+        statisticsFrame.getContentPane().add( new JScrollPane( statisticsPanel ) , cnstrs );
         
         statisticsPanel.setFocusable(true);
         statisticsPanel.addKeyListener( keyListener );     
+
         
-		statisticsFrame.getContentPane().add( statisticsPanel );
-		
 		statisticsFrame.setLocation( frame.getLocation().x + frame.getWidth()+2 , frame.getLocation().y );
 		statisticsFrame.pack();
         statisticsFrame.setVisible( true );		
-    }
-    
+    }   
 }

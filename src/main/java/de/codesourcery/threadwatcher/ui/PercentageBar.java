@@ -2,19 +2,25 @@ package de.codesourcery.threadwatcher.ui;
 
 import java.awt.Color;
 import java.awt.Graphics;
+import java.awt.Rectangle;
 import java.util.LinkedHashMap;
 import java.util.Map.Entry;
 
-public class PercentageBar
+public abstract class PercentageBar
 {
-    private LinkedHashMap<Color,Double> percentages = new LinkedHashMap<>();
+    private LinkedHashMap<Color,IPercentageProvider> percentages = new LinkedHashMap<>();
     private final Color background;
+    
+    public interface IPercentageProvider 
+    {
+        public double getPercentageValue();
+    }
     
     public PercentageBar(Color background) {
         this.background = background;
     }
     
-    public void setPercentage(Color color,Double value) 
+    public void setPercentage(Color color,IPercentageProvider value) 
     {
         if ( color == null ) 
         {
@@ -36,14 +42,19 @@ public class PercentageBar
         
         double scaleX = width / 100.0;
         double lastX = leftX;
-        for ( Entry<Color, Double> entry : percentages.entrySet() ) 
+        for ( Entry<Color, IPercentageProvider> entry : percentages.entrySet() ) 
         {
-            final double currentX = lastX+ entry.getValue()*scaleX;
+            final double currentX = lastX+ entry.getValue().getPercentageValue()*scaleX;
             g.setColor(entry.getKey());
-            g.fillRect( (int) Math.round( lastX ) , topY , (int) Math.round( currentX - lastX ) , height );
+            final int boxX = (int) Math.round( lastX );
+            final int boxWidth = (int) Math.round( currentX - lastX );
+            g.fillRect( boxX , topY , boxWidth , height );
             g.setColor( Color.BLACK );
-            g.drawRect( (int) Math.round( lastX ) , topY , (int) Math.round( currentX - lastX ) , height );            
+            g.drawRect( boxX , topY , boxWidth , height );    
+            valueAdded( entry.getValue() , new Rectangle( boxX , topY , boxWidth , height ) );
             lastX = currentX;
         }
     }
+ 
+    protected abstract void valueAdded(IPercentageProvider value, Rectangle rect);
 }

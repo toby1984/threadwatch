@@ -6,12 +6,17 @@ import java.awt.Point;
 
 public abstract class HorizontalSelectionHelper<T> {
     
-    private int xDragStart=-1;
-    private int xDragEnd=-1; 
+    public static final int DRAG_RADIUS_IN_PIXELS = 10;
+    
+    public static final int NOT_SET = -1;
+    
+    private int xDragStart=NOT_SET;
+    private int xDragEnd=NOT_SET; 
     private boolean selectionMarked = false;        
     private final Color selectionXORColor;
     
     private SelectedInterval lastSelection;
+    private DraggedMarker draggedMarker = DraggedMarker.NONE;
     
     public static final class SelectedInterval 
     {
@@ -23,18 +28,86 @@ public abstract class HorizontalSelectionHelper<T> {
             this.xMin = xMin;
             this.xMax = xMax;
         }
+        
+        public SelectedInterval withMinX(int newMinX) 
+        {
+            return new SelectedInterval( newMinX , xMax );
+        }
+        
+        public SelectedInterval withMaxX(int newMaxX) 
+        {
+            return new SelectedInterval( xMin , newMaxX );
+        }        
     }
+    
+    public static enum DraggedMarker {
+        NONE,
+        START_AND_END,
+        START,
+        END;
+    }
+    
+    public final DraggedMarker getDraggedMarker()
+    {
+        return draggedMarker;
+    }
+    
+    public final void setDraggedMarker(DraggedMarker marker) 
+    {
+        if (marker == null) {
+            throw new IllegalArgumentException("marker must not be NULL.");
+        }
+        this.draggedMarker = marker;
+    }
+    
+    public final DraggedMarker getDragMarkerForPoint(Point p) 
+    {
+        if ( isCloseToLastSelectionStart( p ) ) {
+            return DraggedMarker.START;
+        }
+        if ( isCloseToLastSelectionEnd( p ) ) 
+        {
+            return DraggedMarker.END;
+        }
+        if ( isInsideLastSelection( p ) ) {
+            return DraggedMarker.START_AND_END;
+        }
+        return DraggedMarker.NONE;
+    }
+    
+    private final boolean isInsideLastSelection(Point p)
+    {
+        return getLastSelection() != null && ( p.x >= getLastSelection().xMin && p.x <= getLastSelection().xMax );
+    }
+
+    public final boolean isCloseToLastSelectionStart(Point point) 
+    {
+        if ( getLastSelection() != null  && isValid( point ) ) 
+        {
+            return Math.abs( getLastSelection().xMin - point.x ) <= DRAG_RADIUS_IN_PIXELS;
+        }
+        return false;
+    }
+    
+    public final boolean isCloseToLastSelectionEnd(Point point) 
+    {
+        if ( getLastSelection() != null && isValid( point ) ) 
+        {
+            return Math.abs( getLastSelection().xMax - point.x ) <= DRAG_RADIUS_IN_PIXELS;
+        }
+        return false;
+    }    
     
     public HorizontalSelectionHelper(Color selectionXORColor) {
         this.selectionXORColor = selectionXORColor;
     }
     
-    public boolean isSelecting() {
-        return xDragStart != -1;
+    public final boolean isSelecting() {
+        return xDragStart != NOT_SET;
     }
     
-    public boolean isSelectionAvailable() {
-        return xDragStart != -1 && xDragEnd != -1;
+    public final boolean isSelectionAvailable() {
+        return xDragStart != NOT_SET && xDragEnd != NOT_SET;
     }
     
     protected abstract T getLastSelectionModelObject();    
@@ -48,7 +121,13 @@ public abstract class HorizontalSelectionHelper<T> {
         return lastSelection;
     }
     
-    public void stopSelecting(Point point , Graphics graphics,int height) 
+    public SelectedInterval setLastSelection(SelectedInterval interval) 
+    {
+        this.lastSelection = interval;
+        return interval;
+    }    
+    
+    public final void stopSelecting(Point point , Graphics graphics,int height) 
     {
         if ( isSelectionAvailable() )
         {
@@ -58,11 +137,21 @@ public abstract class HorizontalSelectionHelper<T> {
             
             lastSelection = new SelectedInterval(min,max);
             selectionFinished( min , max );
+            
+            if ( selectionMarked ) 
+            {
+                renderSelection(graphics,NOT_SET,height); // clear selection
+            }
+            
+            xDragStart = xDragEnd = NOT_SET;
+            selectionMarked = false;            
+        } 
+        else {
+            clearSelection(graphics, height);
         }
-        clearSelection(graphics, height);            
     }
     
-    protected boolean isValid(Point p) 
+    protected final boolean isValid(Point p) 
     {
         return p.x >= getMinX() && p.x < getMaxX();
     }
@@ -74,7 +163,7 @@ public abstract class HorizontalSelectionHelper<T> {
         if ( ! isValid(point) ) {
             return;
         }
-        if ( xDragStart == -1 ) {
+        if ( xDragStart == NOT_SET ) {
             xDragStart = point.x;
         } else {
             renderSelection( graphics , point.x , height );
@@ -88,45 +177,48 @@ public abstract class HorizontalSelectionHelper<T> {
             graphics.setXORMode(selectionXORColor);
             int xmin = Math.min( xDragStart,xDragEnd);
             int xmax = Math.max( xDragStart,xDragEnd);
-            graphics.fillRect( xmin , -1 , xmax-xmin , height+1 );
+            graphics.fillRect( xmin , NOT_SET , xmax-xmin , height+1 );
             selectionMarked=true;
         }
     }
     
-    public void paintSelection(Graphics graphics,int xmin , int xmax , int height) 
+    public final void paintSelection(Graphics graphics,int xmin , int xmax , int height) 
     {
         graphics.setXORMode(selectionXORColor);
-        graphics.fillRect( xmin , -1 , xmax-xmin , height+1 );
+        graphics.fillRect( xmin , NOT_SET , xmax-xmin , height+1 );
     }
     
-    private void renderSelection( Graphics graphics, int newXDragX , int height) 
+    private final void renderSelection( Graphics graphics, int newXDragEnd , int height) 
     {
         graphics.setXORMode(selectionXORColor);
         if ( selectionMarked ) // clear old selection
         {
             int xmin = Math.min( xDragStart,xDragEnd);
             int xmax = Math.max( xDragStart,xDragEnd);
-            graphics.fillRect( xmin , -1 , xmax-xmin , height+1 );
+            graphics.fillRect( xmin , NOT_SET , xmax-xmin , height+1 );
             selectionMarked = false;
         }
         
-        if ( newXDragX != -1 ) { // mark new selection
-            int xmin = Math.min( xDragStart,newXDragX);
-            int xmax = Math.max( xDragStart,newXDragX);
-            graphics.fillRect( xmin , -1 , xmax-xmin , height+1 );
+        if ( newXDragEnd != NOT_SET ) { // mark new selection
+            int xmin = Math.min( xDragStart,newXDragEnd);
+            int xmax = Math.max( xDragStart,newXDragEnd);
+            graphics.fillRect( xmin , NOT_SET , xmax-xmin , height+1 );
             selectionMarked = true;                      
         } 
-        xDragEnd = newXDragX;
+        this.xDragEnd = newXDragEnd;
     }        
     
-    public void clearSelection(Graphics graphics,int height)
+    public final void clearSelection(Graphics graphics,int height)
     {
         if ( selectionMarked ) 
         {
-            renderSelection(graphics,-1,height); // clear selection
+            renderSelection(graphics,NOT_SET,height); // clear selection
         }
         
-        xDragStart = xDragEnd = -1;
-        selectionMarked = false;            
-    }        
+        xDragStart = xDragEnd = NOT_SET;
+        selectionMarked = false;
+        selectionCleared();
+    }   
+    
+    protected abstract void selectionCleared();
 }

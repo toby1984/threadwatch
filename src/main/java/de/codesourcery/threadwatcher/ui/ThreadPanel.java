@@ -7,6 +7,7 @@ import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
+import java.awt.Rectangle;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.geom.Rectangle2D;
@@ -20,20 +21,19 @@ import java.util.Map;
 import java.util.Set;
 
 import javax.swing.JPanel;
-
-import org.joda.time.format.DateTimeFormatter;
-import org.joda.time.format.DateTimeFormatterBuilder;
+import javax.swing.Scrollable;
 
 import de.codesourcery.threadwatcher.FileReader;
 import de.codesourcery.threadwatcher.FileReader.FileVisitor;
 import de.codesourcery.threadwatcher.HiResInterval;
 import de.codesourcery.threadwatcher.HiResTimestamp;
-import de.codesourcery.threadwatcher.JVMTIThreadState;
 import de.codesourcery.threadwatcher.ThreadEvent;
 import de.codesourcery.threadwatcher.ui.HorizontalSelectionHelper.SelectedInterval;
 
-public final class ThreadPanel extends JPanel 
+public final class ThreadPanel extends JPanel implements Scrollable 
 {
+    private static final int LEGEND_HEIGHT = 20;
+    
     private final FileReader reader;
     private final HorizontalSelectionHelper<HiResInterval> intervalHelper;
 
@@ -42,6 +42,8 @@ public final class ThreadPanel extends JPanel
 
     private int xOffset;
     private double scaleX;    
+    
+    private Dimension myPreferredSize = null;
 
     private final ComponentAdapter compAdaptor = new ComponentAdapter() 
     {
@@ -134,9 +136,12 @@ public final class ThreadPanel extends JPanel
         final HiResInterval viewInterval = new HiResInterval( intervalStart , intervalStart.plusMilliseconds( intervalLengthInMillis ));
         g.drawString( viewInterval.toUIString() , 5,10 );
 
+        Dimension newSize = null;
         try 
         {
-            new RenderingVisitor( (Graphics2D) g ).render( reader );
+            RenderingVisitor visitor = new RenderingVisitor( (Graphics2D) g );
+            visitor.render( reader );
+            newSize = visitor.getEstimatedSize();
         } 
         catch (IOException e) {
             e.printStackTrace();
@@ -153,8 +158,14 @@ public final class ThreadPanel extends JPanel
                 intervalHelper.paintSelection( g , xmin,xmax,getHeight() );
             }
         }
+        if ( newSize != null && ! newSize.equals( getSize() ) ) 
+        {
+            setPreferredSize( myPreferredSize );
+            myPreferredSize = newSize;
+            revalidate();
+        }
     }
-
+    
     private int modelToView(HiResTimestamp ts) 
     {
         double millis = new HiResInterval(intervalStart,ts).getDurationInMilliseconds();
@@ -180,12 +191,9 @@ public final class ThreadPanel extends JPanel
             HiResInterval interval = new HiResInterval( intervalStart , intervalStart.plusMilliseconds( intervalLengthInMillis ) );
             updateScaleX();
 
-            System.out.println("Displaying interval: "+interval+" has "+interval.getDurationInMilliseconds()+" millis");
-
             final Map<Integer, String> threadNamesByID = reader.getThreadNamesByID();
             aliveThreadIds = reader.getAliveThreadsInInterval( interval ) ;
             final List<Integer> threadIds = new ArrayList<>( aliveThreadIds);
-            System.out.println("Alive Threads in interval: "+interval+" : "+threadIds);
 
             // sort ascending by thread ID first, then ascending by name
             Collections.sort( threadIds , new Comparator<Integer>() {
@@ -230,23 +238,40 @@ public final class ThreadPanel extends JPanel
                 graphics.fillRect( xOffset , y , barWidth , BAR_HEIGHT );
                 y += BAR_SPACING+BAR_HEIGHT;
             }
+            
             x1 = xOffset + (int) Math.round( intervalLengthInMillis * scaleX );
-
-            renderLegend();
+            renderLegend(true);
+        }
+        
+        public Dimension getEstimatedSize() 
+        {
+            int height = Y_OFFSET;
+            if ( ! aliveThreadIds.isEmpty() ) 
+            {
+                height += aliveThreadIds.size()*BAR_HEIGHT+(aliveThreadIds.size()-1)*BAR_SPACING;
+            }
+            final Dimension legendBounds = renderLegend(false);
+            
+            final int width  = Math.max( getWidth() , legendBounds.width );
+            height += legendBounds.height;
+            return new Dimension( width , height );
         }
 
-        private void renderLegend() 
+        private Dimension renderLegend(boolean draw) 
         {
             int x = 5;
-            int y = 20;
+            int y = LEGEND_HEIGHT;
             for (int i = 0; i < LEGEND_ITEMS.size(); i++) {
                 LegendItem item = LEGEND_ITEMS.get(i);
-                item.render( x , y , graphics );
+                if ( draw ) {
+                    item.render( x , y , graphics );
+                }
                 x += item.getBounds( graphics ).width;
                 if ( x != 0 ) {
                     x+=5;
                 }
             }
+            return new Dimension(5+x , LEGEND_HEIGHT );
         }
 
         public void render(FileReader reader) throws IOException {
@@ -271,5 +296,35 @@ public final class ThreadPanel extends JPanel
                 System.out.println("ERROR: rendering: "+x0+" -"+x1+", len: "+(x1-x0)+" , durationMillis: "+durationMillis+" , thread: "+event.threadId+", timestamp: "+event.getTimestamp());
             }
         }
+    }
+
+    @Override
+    public Dimension getPreferredScrollableViewportSize()
+    {
+        return myPreferredSize == null ? getPreferredSize() : myPreferredSize;
+    }
+
+    @Override
+    public int getScrollableUnitIncrement(Rectangle visibleRect, int orientation, int direction)
+    {
+        return 10;
+    }
+
+    @Override
+    public int getScrollableBlockIncrement(Rectangle visibleRect, int orientation, int direction)
+    {
+        return 10;
+    }
+
+    @Override
+    public boolean getScrollableTracksViewportWidth()
+    {
+        return true;
+    }
+
+    @Override
+    public boolean getScrollableTracksViewportHeight()
+    {
+        return false;
     }
 }

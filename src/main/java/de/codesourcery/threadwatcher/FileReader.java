@@ -226,7 +226,6 @@ public class FileReader
         
         readFileHeader();
         
-        // requested interval does not start at the beginning of the file,
         // for each requested thread determine its state at the start of the requested interval        
         final Map<Integer,Integer> initialThreadStatesByThread=new HashMap<>();
 
