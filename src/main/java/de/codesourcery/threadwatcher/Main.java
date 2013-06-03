@@ -308,7 +308,16 @@ public class Main
     
     public static void main(String[] args) throws IOException
     {
-        new Main().run(new File("/tmp/threadwatcher.out" ) );
+    	final File file;
+    	if ( args.length == 0 ) {
+    		file = new File("/tmp/threadwatcher.out" ) ;
+    	} else {
+    		file = new File( args[0] );
+    	}
+    	if ( ! file.exists() || ! file.isFile() || ! file.canRead() ) {
+    		throw new IOException("File "+file.getAbsolutePath()+" is not accessible / not a reglar file");
+    	}
+    	new Main().run( file );
     }
     
     public void run(File file) throws IOException

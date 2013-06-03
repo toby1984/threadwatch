@@ -7,8 +7,8 @@ TARGET=target
 JAVA=java
 JAVAC=javac
 
-all: agent events threadlist writerthread
-	gcc -pthread -fPIC -shared -Wall  -Wl,--no-as-needed -lrt -o $(TARGET)/agent.so $(TARGET)/agent.o $(TARGET)/events.o $(TARGET)/threadlist.o $(TARGET)/writerthread.o
+all: agent events threadlist writerthread pid
+	gcc -pthread -fPIC -shared -Wall  -Wl,--no-as-needed -lm -lrt -o $(TARGET)/agent.so $(TARGET)/agent.o $(TARGET)/events.o $(TARGET)/threadlist.o $(TARGET)/writerthread.o $(TARGET)/pid.o
 
 agent: $(SRC)/agent.c $(MYINCLUDES)/agent.h
 	$(CC) -c -o $(TARGET)/agent.o $(SRC)/agent.c $(CFLAGS) ${INCLUDES}
@@ -21,6 +21,9 @@ writerthread: $(SRC)/writerthread.c $(MYINCLUDES)/writerthread.h
 
 threadlist: $(SRC)/threadlist.c $(MYINCLUDES)/threadlist.h
 	$(CC) -c -o $(TARGET)/threadlist.o $(SRC)/threadlist.c $(CFLAGS) ${INCLUDES}
+
+pid: $(SRC)/pid.c $(MYINCLUDES)/pid.h
+	$(CC) -c -o $(TARGET)/pid.o $(SRC)/pid.c $(CFLAGS) ${INCLUDES}
 	 
 .PHONY: clean
 

@@ -32,7 +32,7 @@ public class Test {
      startLatch.countDown();
 
      System.out.println("*** Sleeping some time..."); 
-     Thread.sleep(3*1000);
+     Thread.sleep(15*1000);
 
      System.out.println("*** Stopping threads..."); 
      producer.stopThread();
