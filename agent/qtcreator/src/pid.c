@@ -84,7 +84,7 @@ void delayLoop()
 
 #ifdef DEBUG_PID
     if ( (loopCount % DESIRED_LOOPS_PER_SECOND) == 0 ) {
-        printf("PID: %f elapsed seconds (actual loops-per-second: %f , deviation: %f, delay: %ld)\n",deltaTimeSeconds,actualLoopsPerSecond,deviation, delayMicros);
+        printf("PID: %f elapsed seconds (actual samples/second: %f , deviation: %f, delay: %ld)\n",deltaTimeSeconds,actualLoopsPerSecond,deviation, delayMicros);
     }
 #endif
 
