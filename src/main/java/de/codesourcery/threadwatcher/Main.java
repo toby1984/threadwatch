@@ -353,12 +353,14 @@ public class Main
     
     public static void main(String[] args) throws IOException
     {
-    	args=new String[]{"/tmp/threadwatcher.out"};
+    	final File file;
     	if ( args.length != 1 ) {
     		System.err.println("Usage: <event log file>");
-    		System.exit(1);
+    		file = new File( "/tmp/threadwatcher.out");    		
+    		System.err.println("Trying to use default file "+file.getAbsolutePath()); 
+    	} else {
+    		file = new File( args[0] );
     	}
-    	final File file = new File( args[0] );
     		
     	if ( ! file.exists() || ! file.isFile() || ! file.canRead() ) {
     		throw new IOException("File "+file.getAbsolutePath()+" is not accessible / not a reglar file");
