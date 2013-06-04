@@ -1,3 +1,19 @@
+/*
+Copyright 2013 Tobias Gierke <tobias.gierke@code-sourcery.de>
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -43,7 +59,7 @@ void startWriterThread(RingBuffer *buffer,char *file)
   /* call an appropriate functions to alter a default value */
   pthread_attr_setstacksize(&tattr , 1 * 1024 * 1024);
 
-  if ( ( err = pthread_create( &writerThreadId , &tattr , &writerThread , buffer ) ) ) {
+  if ( ( err = pthread_create( &writerThreadId , &tattr , (void *(*)(void *)) &writerThread , buffer ) ) ) {
         fprintf( stderr,"ERROR: Failed to create pthread , err=%d\n", err);
         abort();
   }    

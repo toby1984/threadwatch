@@ -1,7 +1,10 @@
 CC=/usr/bin/gcc
 CFLAGS=-g -Wall -Wformat=0 -fPIC -O0
 SRC=qtcreator/src
-INCLUDES=-I/usr/local/java/include -I/usr/local/java/include/linux -Isrc
+
+# Path to JDK include directories
+INCLUDES=-I/usr/local/java/include -I/usr/local/java/include/linux
+
 MYINCLUDES=qtcreator/src
 TARGET=target
 JAVA=java
@@ -28,14 +31,14 @@ pid: $(SRC)/pid.c $(MYINCLUDES)/pid.h
 config: $(SRC)/config.c $(MYINCLUDES)/config.h
 
 	$(CC) -c -o $(TARGET)/config.o $(SRC)/config.c $(CFLAGS) ${INCLUDES}
+
 .PHONY: clean
 
 clean:
-	rm -f target/*.o target/*.so
+	rm -f target/*.o target/*.so target/*.class
 
-Test.class: Test.java
-	$(JAVAC) Test.java
+Test.class: java/Test.java
+	$(JAVAC) java/Test.java -d target
 
 test:  Test.class all
-	$(JAVA) -Xss512k -agentpath:target/agent.so=file=/tmp/threadwatcher.out Test
-#	$(JAVA) -Xss512k -agentpath:target/agent.so=verbose=true,file=/tmp/threadwatcher.out Test
+	$(JAVA) -Xss512k -agentpath:target/agent.so=file=/tmp/threadwatcher.out,verbose=true -cp target Test

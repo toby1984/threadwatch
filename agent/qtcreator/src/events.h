@@ -1,8 +1,25 @@
-#include "global.h"
+/*
+Copyright 2013 Tobias Gierke <tobias.gierke@code-sourcery.de>
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+ */
+
 #include <pthread.h>
 #include <jvmti.h>
 #include <sys/time.h>
 #include <unistd.h>
+
+#include "global.h"
 
 #ifndef DATA_H
 
@@ -43,6 +60,8 @@ struct __attribute__ ((__packed__)) DataRecord {
 
 typedef struct DataRecord DataRecord;
 
+typedef int (*WriteRecordCallback)(DataRecord *record,void *data);
+
 #define DATARECORD_BASE_SIZE sizeof(int)+sizeof(int)+sizeof(struct timeval)
 
 #define THREAD_START_EVENT_SIZE DATARECORD_BASE_SIZE+MAX_THREAD_NAME_LENGTH+1
@@ -68,7 +87,7 @@ void destroyRingBuffer(RingBuffer *buffer);
  * 
  * RETURN: 0 if buffer was full
  */
-int writeRecord(RingBuffer *buffer, int (*callback)(DataRecord*,void*) , void* data);
+int writeRecord(RingBuffer *buffer, WriteRecordCallback callback , void* data);
 
 /*
  * RETURN: 0 if buffer was empty

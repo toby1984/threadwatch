@@ -1,3 +1,19 @@
+/*
+Copyright 2013 Tobias Gierke <tobias.gierke@code-sourcery.de>
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+ */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <pthread.h>
@@ -9,12 +25,9 @@
 
 RingBuffer *createRingBuffer() 
 {
-    DataRecord startEvent;
-#ifdef DEBUG_BUFFER
-    printf("Creating ringbuffer with size %d\n",sizeof(RingBuffer));
-#endif
-
 #ifdef DEBUG
+    DataRecord startEvent;
+
     printf("sizeof(DataRecord): %d\n",sizeof(DataRecord));
     printf("sizeof(ThreadStartEvent): %d\n",sizeof(ThreadStartEvent));
     printf("sizeof(ThreadDeathEvent): %d\n",sizeof(ThreadDeathEvent));
@@ -25,6 +38,10 @@ RingBuffer *createRingBuffer()
     printf("Offset startEvent: %d\n",(void*) &startEvent.startEvent - (void*) &startEvent);
     printf("sizeof(jint): %d\n", sizeof(jint));
     printf("Offset threadState: %d\n",(void*) &startEvent.stateChangeEvent - (void*) &startEvent);
+#endif
+
+#ifdef DEBUG_BUFFER
+    printf("Creating ringbuffer with size %d\n",sizeof(RingBuffer));
 #endif
 
     RingBuffer *result = (RingBuffer*) malloc( sizeof( RingBuffer ) );
@@ -63,9 +80,7 @@ static void unlock(RingBuffer *buffer) {
 
 void destroyRingBuffer(RingBuffer *buffer) 
 {             
-    if ( configuration.verboseMode ) {
-        printf("INFO: Releasing ring buffer (elements written: %d , elements read: %d)\n",buffer->elementsWritten,buffer->elementsRead);
-    }
+    printf("INFO: Disposing ring buffer (events written: %d , events read: %d)\n",buffer->elementsWritten,buffer->elementsRead);
     
     if ( buffer ->lostSamplesCount > 0 ) {
        printf("WARNING: Lost %d samples\n",buffer->lostSamplesCount);
@@ -74,7 +89,7 @@ void destroyRingBuffer(RingBuffer *buffer)
     free(buffer);
 }
 
-int writeRecord(RingBuffer *buffer, int (*callback)(DataRecord*,void*) , void* data)
+int writeRecord(RingBuffer *buffer, WriteRecordCallback callback , void* data)
 {
     int bufferNotFull;
     int newPtr;

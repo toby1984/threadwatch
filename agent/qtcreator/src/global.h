@@ -1,13 +1,26 @@
+/*
+Copyright 2013 Tobias Gierke <tobias.gierke@code-sourcery.de>
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+ */
 
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
 // #define DEBUG
 
-// number of data records that may be kept in the ringbuffer
+// number of events that may be kept in the ringbuffer
 #define SAMPLE_RINGBUFFER_SIZE 10240
-
-#define GETTIME_BENCHMARK_LOOPCOUNT 35000000
 
 #define FILEHEADER_MAGIC 0xdeadbeef
 
@@ -17,13 +30,10 @@
 // max. support thread name length (longer names will be truncated)
 #define MAX_THREAD_NAME_LENGTH 50
 
-// Time of wait between consecutive GetThreadState() calls
-#define SAMPLING_INTERVAL_MILLIS 1
-
 // Name of agent JavaThread 
 #define SAMPLING_THREAD_NAME "thread-watch-sampler"
 
-// name of file data records will be written to
+// default output file events will be written to
 #define OUTPUT_FILE "/tmp/threadwatcher.out"
 
 #endif

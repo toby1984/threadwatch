@@ -18,4 +18,3 @@ HEADERS += \
     src/agent.h \
     src/pid.h \
     src/config.h
-

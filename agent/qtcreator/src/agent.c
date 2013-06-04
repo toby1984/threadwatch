@@ -1,3 +1,19 @@
+/*
+Copyright 2013 Tobias Gierke <tobias.gierke@code-sourcery.de>
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+ */
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -253,7 +269,7 @@ static void* sampleThreadStates(void *ptr)
    } 
 
    if ( configuration.verboseMode ) {
-    printf("INFO: Ready to sample thread states, ring buffer size: %d samples \n",SAMPLE_RINGBUFFER_SIZE);
+    printf("INFO: Ready to sample thread states, ring buffer size: %d events \n",SAMPLE_RINGBUFFER_SIZE);
    }
    
   (*currentVM)->GetEnv(currentVM, (void**) &samplingThreadJvmti, JVMTI_VERSION_1_0);   
@@ -276,7 +292,7 @@ static void* sampleThreadStates(void *ptr)
 
 static void queryThreadState(ThreadListNode *current) 
 {    
-     writeRecord(sampleBuffer, &populateThreadSampleRecord, (void*) current );
+    writeRecord(sampleBuffer, (WriteRecordCallback) &populateThreadSampleRecord, (void*) current );
 }
 
 static int populateThreadSampleRecord(DataRecord *record,ThreadListNode *current) 
@@ -331,7 +347,7 @@ static int populateThreadStartRecord(DataRecord *record,ThreadListNode *current)
     }    
     record->type = EVENT_THREAD_START;
     record->uniqueThreadId=current->uniqueThreadId;
-    strncpy( &record->startEvent.threadName,current->threadName,MAX_THREAD_NAME_LENGTH);
+    strncpy( record->startEvent.threadName,current->threadName,MAX_THREAD_NAME_LENGTH);
     return 1;
 }
 
@@ -369,7 +385,7 @@ static void JNICALL onThreadStart(jvmtiEnv *jvmti_env, JNIEnv* jni_env, jthread 
       threadGlobalRef = (*jni_env)->NewGlobalRef(jni_env,thread);
       newNode = addThreadListNode( threadInfo.name , thread , threadGlobalRef );
       
-      writeRecord(sampleBuffer, &populateThreadStartRecord, (void*) newNode );      
+      writeRecord(sampleBuffer, (WriteRecordCallback) &populateThreadStartRecord, (void*) newNode );
     }
 
     // END: Critical section
@@ -411,9 +427,9 @@ static void JNICALL onThreadEnd(jvmtiEnv *jvmti_env, JNIEnv* jni_env, jthread th
       
       existingNode = findThreadListNode( thread );
       if ( existingNode != NULL ) {
-        writeRecord(sampleBuffer, &populateThreadDeathRecord, (void*) existingNode );  
+          writeRecord(sampleBuffer, (WriteRecordCallback) &populateThreadDeathRecord, (void*) existingNode );
       }      
-      removeThreadListNode(thread,&cleanUp, jvmti_env);
+      removeThreadListNode(thread,(CleanUpVisitor) &cleanUp, jvmti_env);
     }
     
     // END: Critical section
