@@ -84,20 +84,20 @@ public class HiResIntervalTest extends TestCase {
 	{
 		DateTime start = new DateTime();
 		HiResInterval interval = new HiResInterval(start,start);
-		assertEquals(0.0,interval.getDurationInMilliseconds() );
+		assertEquals(0.0,interval.getDurationInMilliseconds() , 0.001 );
 	}	
 	
 	public void testGetDurationInMillis() 
 	{
 		DateTime start = new DateTime();
 		HiResInterval interval = new HiResInterval(start,start.plusMillis( 111 ));
-		assertEquals(111.0,interval.getDurationInMilliseconds() );
+		assertEquals(111.0,interval.getDurationInMilliseconds() , 0.001 );
 	}	
 	
 	public void testGetDurationInMillis2() 
 	{
 		DateTime start = new DateTime();
 		HiResInterval interval = new HiResInterval(start,start.plusSeconds( 1 ).plusMillis( 123 ));
-		assertEquals(1123.0,interval.getDurationInMilliseconds() );
+		assertEquals(1123.0,interval.getDurationInMilliseconds() , 0.001 );
 	}		
 }
