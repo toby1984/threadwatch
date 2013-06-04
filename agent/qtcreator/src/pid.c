@@ -14,9 +14,14 @@ static struct timespec pidCurrentTime = {0,0};
 
 static double esum = 0.0;
 static double ealt = 0.0;
+static double delaySum = 0.0;
 
 static unsigned long long loopCount = 0;
 static double deviation;
+
+
+
+static double dummyValue = 0.0;
 
 double elapsedSeconds() {
 
@@ -36,7 +41,7 @@ double fakeSomeWork()
   int i,j;
   for ( i = 100 ; i > 0 ; i--)
   {
-     for ( j = 10 ; j > 0 ; j--) {
+     for ( j = 2000 ; j > 0 ; j--) {
         x = x*x+(i*j)+i*x;
      }
   }
@@ -83,13 +88,15 @@ void delayLoop()
     delayMicros = (long) round( MAX_DELAY * calculateDelay( deviation , 2 ) );
 
 #ifdef DEBUG_PID
+    delaySum += delayMicros;
+
     if ( (loopCount % DESIRED_LOOPS_PER_SECOND) == 0 ) {
-        printf("PID: %f elapsed seconds (actual samples/second: %f , deviation: %f, delay: %ld)\n",deltaTimeSeconds,actualLoopsPerSecond,deviation, delayMicros);
+        printf("PID: %f seconds elapsed (actual samples/second: %f , deviation: %f, delay loop iterations: %ld, avg. iterations: %f)\n",deltaTimeSeconds,actualLoopsPerSecond,deviation, delayMicros,delaySum/loopCount);
     }
 #endif
 
     if ( delayMicros > 0 ) {
-        delay( delayMicros );
+        dummyValue = delay( delayMicros );
     }
 }
 
@@ -98,8 +105,8 @@ static double delay(long value)
         double dummy = 0.0;
 #ifdef USE_DELAY_LOOP
         long j;
-    for ( value = 1500 ; value > 0 ; value-- ) {
-      for (  j = 1000 ; j > 0 ; j--) {
+    for ( ; value > 0 ; value-- ) {
+      for (  j = 50 ; j > 0 ; j--) {
           dummy=dummy*dummy*value+j;
       }
     }
