@@ -16,10 +16,12 @@
 package de.codesourcery.threadwatcher;
 
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.awt.GridLayout;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
@@ -28,7 +30,10 @@ import java.io.File;
 import java.io.IOException;
 
 import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JTextField;
 
 import de.codesourcery.threadwatcher.ui.HorizontalSelectionHelper;
 import de.codesourcery.threadwatcher.ui.HorizontalSelectionHelper.DraggedMarker;
@@ -41,6 +46,10 @@ public class Main
     private ThreadPanel chartPanel;
     private StatisticsPanel statisticsPanel;
     
+    private final JTextField viewIntervalStart = new JTextField();
+    private final JTextField viewIntervalEnd = new JTextField();
+    private final JTextField viewIntervalDuration= new JTextField();
+    
     protected static enum SelectionType {
         VIEW_INTERVAL,
         INFO_INTERVAL;
@@ -48,7 +57,7 @@ public class Main
     
     private SelectionType activeSelectionType = null;    
     
-    private final HorizontalSelectionHelper<HiResInterval> viewIntervalChooser = new HorizontalSelectionHelper<HiResInterval>(Color.RED) {
+    private final HorizontalSelectionHelper<HiResInterval> viewIntervalChooser = new HorizontalSelectionHelper<HiResInterval>(Color.BLUE) {
 
         private HiResInterval selection; 
         
@@ -65,12 +74,18 @@ public class Main
                 chartPanel.setInterval( xmin , windowDurationMillis );
             }
         }
+        
+        @Override
+        protected int getYOffset() 
+        {
+        	return chartPanel.getYOffset();
+        }
 
         @Override
-        protected int getMinX() { return chartPanel.getXOffset(); }
+        public int getMinX() { return chartPanel.getXOffset(); }
 
         @Override
-        protected int getMaxX() { return chartPanel.getWidth(); }
+        public int getMaxX() { return chartPanel.getCanvasMaxX(); }
 
         @Override
         protected HiResInterval getLastSelectionModelObject()
@@ -84,7 +99,7 @@ public class Main
         }
     };
     
-    private final HorizontalSelectionHelper<HiResInterval> infoIntervalChooser = new HorizontalSelectionHelper<HiResInterval>(Color.YELLOW) {
+    private final HorizontalSelectionHelper<HiResInterval> infoIntervalChooser = new HorizontalSelectionHelper<HiResInterval>(Color.RED) {
 
         private HiResInterval selection;
         
@@ -106,6 +121,12 @@ public class Main
                 }
             }
         }
+        
+        @Override
+        protected int getYOffset() 
+        {
+        	return chartPanel.getYOffset();
+        }        
         
         public HorizontalSelectionHelper.SelectedInterval setLastSelection(HorizontalSelectionHelper.SelectedInterval interval) 
         {
@@ -140,10 +161,10 @@ public class Main
         }
         
         @Override
-        protected int getMinX() { return chartPanel.getXOffset(); }
+        public int getMinX() { return chartPanel.getXOffset(); }
 
         @Override
-        protected int getMaxX() { return chartPanel.getWidth(); }
+        public int getMaxX() { return chartPanel.getCanvasMaxX(); }
 
         @Override
         protected  HiResInterval getLastSelectionModelObject()
@@ -204,10 +225,10 @@ public class Main
                 
                 if ( activeSelectionType == SelectionType.INFO_INTERVAL) 
                 {
-                    infoIntervalChooser.stopSelecting( e.getPoint() , chartPanel.getGraphics() , chartPanel.getHeight() );
+                    infoIntervalChooser.stopSelecting( e.getPoint() , chartPanel.getGraphics() , chartPanel.getCanvasHeight() );
                     activeSelectionType = null;
                 } else if ( activeSelectionType == SelectionType.VIEW_INTERVAL) {
-                    viewIntervalChooser.stopSelecting( e.getPoint() , chartPanel.getGraphics() , chartPanel.getHeight() );
+                    viewIntervalChooser.stopSelecting( e.getPoint() , chartPanel.getGraphics() , chartPanel.getCanvasHeight() );
                     activeSelectionType = null;
                 }
             } 
@@ -235,18 +256,23 @@ public class Main
         
         public void mouseDragged(java.awt.event.MouseEvent e) 
         {
+        	
             switch ( infoIntervalChooser.getDraggedMarker() )
             {
                 case START:
-                    infoIntervalChooser.setLastSelection(infoIntervalChooser.getLastSelection().withMinX( e.getPoint().x ) );
-                    chartPanel.repaint();
+                	if ( infoIntervalChooser.isValid( e.getPoint() ) ) {
+                		infoIntervalChooser.setLastSelection(infoIntervalChooser.getLastSelection().withMinX( e.getPoint().x ) );
+                		chartPanel.repaint();
+                	}
                     return;
                 case END:
-                    infoIntervalChooser.setLastSelection(infoIntervalChooser.getLastSelection().withMaxX( e.getPoint().x ) );
-                    chartPanel.repaint();
+                	if ( infoIntervalChooser.isValid( e.getPoint() ) ) {
+                		infoIntervalChooser.setLastSelection(infoIntervalChooser.getLastSelection().withMaxX( e.getPoint().x ) );
+                		chartPanel.repaint();
+                	}
                     return;
-                    default:
-                        // $$FALL-THROUGH $$
+                default:
+                   // $$FALL-THROUGH $$
             }
             
             if ( activeSelectionType != null ) 
@@ -254,10 +280,10 @@ public class Main
                 switch (activeSelectionType)
                 {
                     case INFO_INTERVAL:
-                        infoIntervalChooser.updateSelection( e.getPoint() , chartPanel.getGraphics(), chartPanel.getHeight() );                        
+                        infoIntervalChooser.updateSelection( e.getPoint() , chartPanel.getGraphics(), chartPanel.getCanvasHeight() );                        
                         break;
                     case VIEW_INTERVAL:
-                        viewIntervalChooser.updateSelection( e.getPoint() , chartPanel.getGraphics(), chartPanel.getHeight() );
+                        viewIntervalChooser.updateSelection( e.getPoint() , chartPanel.getGraphics(), chartPanel.getCanvasHeight() );
                         break;
                     default:
                         break;
@@ -278,11 +304,11 @@ public class Main
                     switch (activeSelectionType)
                     {
                         case INFO_INTERVAL:
-                            infoIntervalChooser.clearSelection( chartPanel.getGraphics() , chartPanel.getHeight() );
+                            infoIntervalChooser.clearSelection( chartPanel.getGraphics() , chartPanel.getCanvasHeight() );
                             activeSelectionType = null;
                             break;
                         case VIEW_INTERVAL:
-                            viewIntervalChooser.clearSelection( chartPanel.getGraphics() , chartPanel.getHeight() );
+                            viewIntervalChooser.clearSelection( chartPanel.getGraphics() , chartPanel.getCanvasHeight() );
                             activeSelectionType = null;
                             break;
                         default:
@@ -291,7 +317,7 @@ public class Main
                 } 
                 else 
                 {
-                    infoIntervalChooser.clearSelection( chartPanel.getGraphics() , chartPanel.getHeight() );                    
+                    infoIntervalChooser.clearSelection( chartPanel.getGraphics() , chartPanel.getCanvasHeight() );                    
                 }
             }
         }
@@ -302,13 +328,16 @@ public class Main
             if ( e.getKeyChar() == 'd' ) 
             {
                 chartPanel.stepForward();
+                updateTextFields( chartPanel.getInterval());
             } else if ( e.getKeyChar() == 'a' ) {
                 chartPanel.stepBackward();
+                updateTextFields( chartPanel.getInterval());
             } else if ( e.getKeyChar() == 's' ) 
             {
                 long newIntervalLengthMillis = (long) (chartPanel.getIntervalLengthMillis()*2.0);
                 if ( newIntervalLengthMillis > 0 ) {
-                    chartPanel.setIntervalLength( newIntervalLengthMillis);
+                    chartPanel.setIntervalLength( newIntervalLengthMillis );
+                    updateTextFields( chartPanel.getInterval() );
                 }
             } 
             else if ( e.getKeyChar() == 'w' ) 
@@ -316,6 +345,7 @@ public class Main
                 long newIntervalLengthMillis = (long) (chartPanel.getIntervalLengthMillis()/2.0);
                 if ( newIntervalLengthMillis > 0 ) {
                     chartPanel.setIntervalLength( newIntervalLengthMillis);
+                    updateTextFields( chartPanel.getInterval() );
                 }                   
             }
         }
@@ -323,43 +353,105 @@ public class Main
     
     public static void main(String[] args) throws IOException
     {
-    	final File file;
-    	if ( args.length == 0 ) {
-    		file = new File("/tmp/threadwatcher.out" ) ;
-    	} else {
-    		file = new File( args[0] );
+    	args=new String[]{"/tmp/threadwatcher.out"};
+    	if ( args.length != 1 ) {
+    		System.err.println("Usage: <event log file>");
+    		System.exit(1);
     	}
+    	final File file = new File( args[0] );
+    		
     	if ( ! file.exists() || ! file.isFile() || ! file.canRead() ) {
     		throw new IOException("File "+file.getAbsolutePath()+" is not accessible / not a reglar file");
     	}
     	new Main().run( file );
     }
     
+    private void updateTextFields(HiResInterval interval) {
+        
+    	viewIntervalStart.setText( interval.start.toUIString() );
+    	viewIntervalEnd.setText( interval.end.toUIString() );
+    	viewIntervalDuration.setText( interval.getDurationInMilliseconds()+" ms");
+    }
+    
+    private static void setBackgroundColor(Component c) {
+    	c.setBackground( Color.WHITE );
+    }
     public void run(File file) throws IOException
     {
         fileReader = new FileReader(file);
+        final HiResInterval interval = fileReader.getInterval();
+        System.out.println("INTERVAL: "+interval.toUIString()+" , duration : "+interval.getDurationInMilliseconds());
         
+        // setup top-level panel
+        final JPanel controlPanel = new JPanel();
+        setBackgroundColor( controlPanel );
+        controlPanel.addKeyListener( keyListener );
+        controlPanel.setFocusable( true );
+        controlPanel.setLayout( new GridLayout(2, 3 ) );
+
+        viewIntervalStart.setColumns( 20 );
+        viewIntervalEnd.setColumns( 20 );
+        viewIntervalDuration.setColumns( 20 );
+        
+        setBackgroundColor( viewIntervalStart);
+        setBackgroundColor(viewIntervalEnd);
+        setBackgroundColor(viewIntervalDuration);
+        
+        viewIntervalStart.setHorizontalAlignment(JTextField.CENTER);
+        viewIntervalEnd.setHorizontalAlignment(JTextField.CENTER);
+        viewIntervalDuration.setHorizontalAlignment(JTextField.CENTER);
+        
+        viewIntervalStart.setEditable( false );
+        viewIntervalEnd.setEditable( false );
+        viewIntervalDuration.setEditable( false );
+        
+        updateTextFields( interval );
+        
+        controlPanel.add( new JLabel("Start" , JLabel.CENTER ) );
+        controlPanel.add( new JLabel("End" , JLabel.CENTER ) );
+        controlPanel.add( new JLabel("Window Duration" , JLabel.CENTER ) );
+        
+        controlPanel.add( viewIntervalStart );
+        controlPanel.add( viewIntervalEnd );
+        controlPanel.add( viewIntervalDuration );
+        
+        // setup chart panel
+        
+		chartPanel = new ThreadPanel(fileReader , infoIntervalChooser , interval.start , (long) Math.ceil( interval.getDurationInMilliseconds() )+3000 );
+        chartPanel.setPreferredSize(new Dimension(640,480 ) );
+        chartPanel.addMouseListener( mouseListener );
+        chartPanel.setFocusable( true );
+        chartPanel.addMouseMotionListener( mouseListener );
+        chartPanel.addKeyListener( keyListener );
+        
+        // setup main frame
         final JFrame frame = new JFrame("Thread-Watcher V0.0");
         frame.setDefaultCloseOperation( JFrame.EXIT_ON_CLOSE);
-        
-        chartPanel = new ThreadPanel(fileReader , infoIntervalChooser , fileReader.getInterval().start , 1000 );
-        chartPanel.setPreferredSize(new Dimension(640,480 ) );
         frame.getContentPane().setLayout(new GridBagLayout());
+        
         GridBagConstraints cnstrs = new GridBagConstraints();
         cnstrs.fill = GridBagConstraints.BOTH;
         cnstrs.gridwidth=GridBagConstraints.REMAINDER;
+        cnstrs.gridheight=GridBagConstraints.RELATIVE;
+        cnstrs.gridx=0;
+        cnstrs.gridy=0;        
+        cnstrs.weightx=1.0;
+        cnstrs.weighty=0.0;
+        frame.getContentPane().add( controlPanel , cnstrs );
+        
+        cnstrs.fill = GridBagConstraints.BOTH;
+        cnstrs.gridwidth=GridBagConstraints.REMAINDER;
         cnstrs.gridheight=GridBagConstraints.REMAINDER;
+        cnstrs.gridx=0;
+        cnstrs.gridy=1;
         cnstrs.weightx=1.0;
         cnstrs.weighty=1.0;
-        frame.getContentPane().add( new JScrollPane( chartPanel ) , cnstrs );
+        final JScrollPane chartPane = new JScrollPane( chartPanel );
+        setBackgroundColor( chartPane.getViewport() );
+		frame.getContentPane().add( chartPane , cnstrs );
+        
         frame.pack();
         frame.setVisible( true );
-        
-        chartPanel.addMouseListener( mouseListener );
-        chartPanel.addMouseMotionListener( mouseListener );
-        
-        chartPanel.setFocusable(true);
-        chartPanel.addKeyListener( keyListener );
 
 		// setup statistics frame
 		JFrame statisticsFrame = new JFrame("Statistics");
@@ -382,7 +474,6 @@ public class Main
         statisticsPanel.setFocusable(true);
         statisticsPanel.addKeyListener( keyListener );     
 
-        
 		statisticsFrame.setLocation( frame.getLocation().x + frame.getWidth()+2 , frame.getLocation().y );
 		statisticsFrame.pack();
         statisticsFrame.setVisible( true );		

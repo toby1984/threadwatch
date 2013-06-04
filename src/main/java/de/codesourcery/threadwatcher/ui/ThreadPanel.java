@@ -48,14 +48,19 @@ import de.codesourcery.threadwatcher.ui.HorizontalSelectionHelper.SelectedInterv
 public final class ThreadPanel extends JPanel implements Scrollable 
 {
     private static final int LEGEND_HEIGHT = 20;
+    private static final int RIGHT_BORDER = 20;
     
-    private final FileReader reader;
+    private FileReader reader;
     private final HorizontalSelectionHelper<HiResInterval> intervalHelper;
 
     private HiResTimestamp intervalStart;
     private long intervalLengthInMillis;
 
+    private int yOffset;
     private int xOffset;
+	private int canvasHeight;
+	private int canvasMaxX;
+    
     private double scaleX;    
     
     private Dimension myPreferredSize = null;
@@ -75,11 +80,17 @@ public final class ThreadPanel extends JPanel implements Scrollable
         this.reader = reader;
         this.intervalHelper = intervalHelper;
 
+        this.intervalStart = intervalStart;        
         this.intervalLengthInMillis = intervalLengthInMillis;
-        this.intervalStart = reader.getInterval().start;
 
         setBackground(Color.WHITE);
         addComponentListener(compAdaptor);
+    }
+    
+    public void setFileReader(FileReader reader,HiResInterval interval) 
+    {
+    	this.reader = reader;
+    	setInterval( interval.start , (long) Math.ceil( interval.getDurationInMilliseconds() ) );
     }
 
     @Override
@@ -139,6 +150,11 @@ public final class ThreadPanel extends JPanel implements Scrollable
         shiftIntervalByMillis( -(this.intervalLengthInMillis/4) );
     }           
 
+    public HiResInterval getInterval() 
+    {
+    	return  new HiResInterval( intervalStart , intervalStart.plusMilliseconds( intervalLengthInMillis ));
+    }
+    
     @Override
     protected void paintComponent(Graphics g)
     {
@@ -146,10 +162,7 @@ public final class ThreadPanel extends JPanel implements Scrollable
 
         updateScaleX();
 
-        g.setColor(Color.BLACK);
-
-        final HiResInterval viewInterval = new HiResInterval( intervalStart , intervalStart.plusMilliseconds( intervalLengthInMillis ));
-        g.drawString( viewInterval.toUIString() , 5,10 );
+        final HiResInterval viewInterval = getInterval();
 
         Dimension newSize = null;
         try 
@@ -170,12 +183,12 @@ public final class ThreadPanel extends JPanel implements Scrollable
             {
                 int xmin = modelToView( selectedInterval.start);
                 int xmax = modelToView( selectedInterval.end);
-                intervalHelper.paintSelection( g , xmin,xmax,getHeight() );
+                intervalHelper.paintSelection( g , xmin,xmax,getCanvasHeight() );
             }
         }
-        if ( newSize != null && ! newSize.equals( getSize() ) ) 
+        if ( newSize != null && ! newSize.equals( getPreferredSize() ) ) 
         {
-            setPreferredSize( myPreferredSize );
+            setPreferredSize( newSize );
             myPreferredSize = newSize;
             revalidate();
         }
@@ -189,8 +202,20 @@ public final class ThreadPanel extends JPanel implements Scrollable
 
     protected void updateScaleX() 
     {
-        scaleX = (getWidth()-X_OFFSET) / (double) intervalLengthInMillis;
+        scaleX = (getWidth() - X_OFFSET - RIGHT_BORDER) / (double) intervalLengthInMillis;
     }
+    
+    public int getYOffset() {
+    	return yOffset;
+    }
+    
+    public int getCanvasHeight() {
+    	return canvasHeight;
+    }
+    
+    public int getCanvasMaxX() {
+		return canvasMaxX;
+	}
 
     protected final class RenderingVisitor extends FileVisitor 
     {
@@ -203,7 +228,7 @@ public final class ThreadPanel extends JPanel implements Scrollable
         public RenderingVisitor(Graphics2D graphics) 
         {
             this.graphics  = graphics;
-            HiResInterval interval = new HiResInterval( intervalStart , intervalStart.plusMilliseconds( intervalLengthInMillis ) );
+            HiResInterval interval =getInterval();
             updateScaleX();
 
             final Map<Integer, String> threadNamesByID = reader.getThreadNamesByID();
@@ -234,6 +259,7 @@ public final class ThreadPanel extends JPanel implements Scrollable
             }
 
             xOffset = (int) Math.round( X_OFFSET+longestNameWidth*1.1 );
+            yOffset = Y_OFFSET;
 
             Rectangle2D stringBounds = graphics.getFontMetrics().getStringBounds("XYZ", graphics);
             BAR_HEIGHT = (int) Math.ceil( stringBounds.getHeight()*1.5 );
@@ -241,7 +267,8 @@ public final class ThreadPanel extends JPanel implements Scrollable
             // assign Y coordinates
             graphics.setColor(LEGENDITEM_DEAD.color);
             int y = Y_OFFSET;
-            final int barWidth = getWidth() - xOffset;
+            canvasMaxX = getWidth() - RIGHT_BORDER;
+            final int barWidth = getWidth() - xOffset - RIGHT_BORDER;
             for ( int threadId : threadIds ) 
             {
                 final String threadName = threadNamesByID.get(threadId)+" ("+threadId+")";
@@ -254,6 +281,11 @@ public final class ThreadPanel extends JPanel implements Scrollable
                 y += BAR_SPACING+BAR_HEIGHT;
             }
             
+            if ( threadIds.isEmpty() ) {
+            	canvasHeight = 0;
+            } else {
+            	canvasHeight = (BAR_SPACING+BAR_HEIGHT)*(threadIds.size()-1)+BAR_HEIGHT-1;
+            }
             x1 = xOffset + (int) Math.round( intervalLengthInMillis * scaleX );
             renderLegend(true);
         }
@@ -267,7 +299,7 @@ public final class ThreadPanel extends JPanel implements Scrollable
             }
             final Dimension legendBounds = renderLegend(false);
             
-            final int width  = Math.max( getWidth() , legendBounds.width );
+            final int width  = (int) Math.max( getWidth() , legendBounds.width );
             height += legendBounds.height;
             return new Dimension( width , height );
         }
@@ -275,7 +307,7 @@ public final class ThreadPanel extends JPanel implements Scrollable
         private Dimension renderLegend(boolean draw) 
         {
             int x = 5;
-            int y = LEGEND_HEIGHT;
+            int y = 10;
             for (int i = 0; i < LEGEND_ITEMS.size(); i++) {
                 LegendItem item = LEGEND_ITEMS.get(i);
                 if ( draw ) {
@@ -302,11 +334,15 @@ public final class ThreadPanel extends JPanel implements Scrollable
         {
             final int y0 = threadYOffsetMap.get( event.threadId );
             final double durationMillis = HiResInterval.getDurationInMilliseconds( intervalStart , event.getTimestamp() );
-            int x0 = xOffset + (int) Math.round( durationMillis*scaleX);
+            int x0 = xOffset + (int) Math.round( durationMillis * scaleX);
 
             final Color color = UIConstants.getLegendItemForEvent( event ).color;
             graphics.setColor( color );
-            graphics.fillRect( x0 ,y0 , x1 - x0 , BAR_HEIGHT );
+            int barWidth = x1 - x0;
+            if ( (x0 + barWidth) >  canvasMaxX ) {
+            	barWidth = canvasMaxX - x0;
+            }
+			graphics.fillRect( x0 ,y0 , barWidth , BAR_HEIGHT );
             if ( x0 < 0 || x1 < 0 || (x1-x0) < 0 ) {
                 System.out.println("ERROR: rendering: "+x0+" -"+x1+", len: "+(x1-x0)+" , durationMillis: "+durationMillis+" , thread: "+event.threadId+", timestamp: "+event.getTimestamp());
             }

@@ -16,6 +16,8 @@
 package de.codesourcery.threadwatcher;
 
 import org.joda.time.DateTime;
+import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.DateTimeFormatterBuilder;
 
 public final class HiResTimestamp implements Comparable<HiResTimestamp>
 {
@@ -153,5 +155,26 @@ public final class HiResTimestamp implements Comparable<HiResTimestamp>
 			return 1;
 		}		
 		return 0;
+	}	
+	
+	public String toUIString()
+	{
+        DateTimeFormatter DF = new DateTimeFormatterBuilder()
+        .appendYear(4, 4)
+        .appendLiteral('-')                
+        .appendMonthOfYear(1)
+        .appendLiteral('-')                
+        .appendDayOfMonth(1)
+        .appendLiteral(" ")
+        .appendHourOfDay(2)
+        .appendLiteral(':')                
+        .appendMinuteOfHour(2)
+        .appendLiteral(':')
+        .appendSecondOfMinute(2)
+        .appendLiteral('.')
+        .appendMillisOfSecond(1)
+        .toFormatter();
+
+        return DF.print( toDateTime());
 	}	
 }
