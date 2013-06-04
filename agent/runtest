@@ -1,3 +1,0 @@
-#!/bin/bash
-echo "java -Xss512k -agentpath:/home/tgierke/workspace/threadwatch/target/agent.so Test"
-java -Xss512k -agentpath:/home/tgierke/workspace/threadwatch/target/agent.so Test

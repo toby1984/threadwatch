@@ -1,10 +1,12 @@
-#include "global.h"
-#include "writerthread.h"
-#include "events.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
 #include <unistd.h>
+
+#include "config.h"
+#include "global.h"
+#include "writerthread.h"
+#include "events.h"
 
 static pthread_t writerThreadId;
 static FILE *outputFile = NULL;
@@ -13,13 +15,15 @@ static volatile int terminateWriter = 0;
 
 static void *writerThread(RingBuffer *buffer);
 
-static long currentFileOffset = 0;void startWriterThread(RingBuffer *buffer,char *file)
+void startWriterThread(RingBuffer *buffer,char *file)
 {
   int err;
   unsigned int magic = FILEHEADER_MAGIC;
   pthread_attr_t tattr;
   
-    printf("INFO: Started writer thread that writes to file %s\n",file);  
+  if ( configuration.verboseMode ) {
+    printf("INFO: Started writer thread that writes to file %s\n",file);
+  }
 
     if ( ! (outputFile=fopen(file,"w+") ) ) 
     {
@@ -99,7 +103,10 @@ static void *writerThread(RingBuffer *buffer)
         
     fflush(outputFile);
     fclose(outputFile);
-    printf("INFO: Closed output file.\n");
+
+    if ( configuration.verboseMode ) {
+       printf("INFO: Closed output file.\n");
+    }
     return NULL;
 }
 

@@ -13,6 +13,7 @@
 #include "agent.h"
 #include "writerthread.h"
 #include "pid.h"
+#include "config.h"
 
 // thread responsible for sampling JVM thread states periodically 
 static pthread_t samplingThreadId;
@@ -27,7 +28,7 @@ static jvmtiEnv *jvmti = NULL;
 
 static jrawMonitorID lock;
 
-static int getTimeExecNanos=0;
+Config configuration={ .outputFile=NULL , .maxPidDelay=MAX_DELAY , .verboseMode=0};
 
 /* Get name for JVMTI error code */
 static char * getErrorName(jvmtiEnv *jvmti, jvmtiError errnum)
@@ -96,6 +97,8 @@ JNIEXPORT jint JNICALL Agent_OnLoad(JavaVM *jvm, char *options, void *reserved) 
   jvmtiEventCallbacks callbacks;
 
   currentVM = jvm;
+
+  initializeConfig(options);
 
   sampleBuffer = createRingBuffer(); 
    
@@ -237,7 +240,7 @@ static void* sampleThreadStates(void *ptr)
    // TODO: Get rid of using a Java native monitor , use a pthread_mutex to protected JNI callback methods
    usleep(1000*1000); // 1 second
    
-   startWriterThread(sampleBuffer,OUTPUT_FILE);   
+   startWriterThread(sampleBuffer,configuration.outputFile);
    
 #ifdef DEBUG     
    printf("*** attaching sampling thread.\n"); 
@@ -249,7 +252,9 @@ static void* sampleThreadStates(void *ptr)
         abort();
    } 
 
-   printf("INFO: Ready to sample thread states, ring buffer size: %d samples \n",SAMPLE_RINGBUFFER_SIZE); 
+   if ( configuration.verboseMode ) {
+    printf("INFO: Ready to sample thread states, ring buffer size: %d samples \n",SAMPLE_RINGBUFFER_SIZE);
+   }
    
   (*currentVM)->GetEnv(currentVM, (void**) &samplingThreadJvmti, JVMTI_VERSION_1_0);   
 
@@ -257,7 +262,7 @@ static void* sampleThreadStates(void *ptr)
    {
      visitThreadList( &queryThreadState ); 
      __sync_synchronize(); 
-     delayLoop();
+     delayLoop( &configuration );
    }
    
 #ifdef DEBUG   

@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <math.h>
 #include <time.h>
+
 #include "pid.h"
 
 static double calculateDelay(double e, double Ta);
@@ -18,8 +19,6 @@ static double delaySum = 0.0;
 
 static unsigned long long loopCount = 0;
 static double deviation;
-
-
 
 static double dummyValue = 0.0;
 
@@ -50,16 +49,17 @@ double fakeSomeWork()
 
 int main(int argc,char **args) {
 
+  Config config={ .outputFile=NULL , .maxPidDelay=MAX_DELAY , .verboseMode=0};
   unsigned long i;
   for ( i = 1000000 ; i > 0 ; i-- )
   {
     fakeSomeWork();
-     delayLoop();
+     delayLoop(&config);
   }
   return 0;
 }
 
-void delayLoop()
+void delayLoop(Config *config)
 {
     long delayMicros;
     double deltaTimeSeconds;
@@ -85,15 +85,13 @@ void delayLoop()
     actualLoopsPerSecond = ( loopCount / deltaTimeSeconds );
     deviation = DESIRED_LOOPS_PER_SECOND  - actualLoopsPerSecond;
 
-    delayMicros = (long) round( MAX_DELAY * calculateDelay( deviation , 2 ) );
+    delayMicros = (long) round( config->maxPidDelay * calculateDelay( deviation , 2 ) );
 
-#ifdef DEBUG_PID
     delaySum += delayMicros;
 
-    if ( (loopCount % DESIRED_LOOPS_PER_SECOND) == 0 ) {
-        printf("PID: %f seconds elapsed (actual samples/second: %f , deviation: %f, delay loop iterations: %ld, avg. iterations: %f)\n",deltaTimeSeconds,actualLoopsPerSecond,deviation, delayMicros,delaySum/loopCount);
+    if ( config->verboseMode && (loopCount % DESIRED_LOOPS_PER_SECOND) == 0 ) {
+        printf("INFO: %f seconds elapsed (actual samples/second: %f , deviation: %f, delay loop iterations: %ld, avg. iterations: %f)\n",deltaTimeSeconds,actualLoopsPerSecond,deviation, delayMicros,delaySum/loopCount);
     }
-#endif
 
     if ( delayMicros > 0 ) {
         dummyValue = delay( delayMicros );

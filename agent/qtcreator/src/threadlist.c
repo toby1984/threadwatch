@@ -113,7 +113,7 @@ void removeThreadListNode(jthread thread,void (*cleanUp)(ThreadListNode*,void*),
   pthread_mutex_unlock( &threadListLock);
 
   if ( ! removed ) {
-    fprintf(stderr,"ERROR: Failed to release %p\n",thread);
+    fprintf(stderr,"WARNING: Failed to release %p\n",thread);
   }
 }
 

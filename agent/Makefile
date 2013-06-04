@@ -7,8 +7,8 @@ TARGET=target
 JAVA=java
 JAVAC=javac
 
-all: agent events threadlist writerthread pid
-	gcc -pthread -fPIC -shared -Wall  -Wl,--no-as-needed -lm -lrt -o $(TARGET)/agent.so $(TARGET)/agent.o $(TARGET)/events.o $(TARGET)/threadlist.o $(TARGET)/writerthread.o $(TARGET)/pid.o
+all: agent events threadlist writerthread pid config
+	gcc -pthread -fPIC -shared -Wall  -Wl,--no-as-needed -lm -lrt -o $(TARGET)/agent.so $(TARGET)/agent.o $(TARGET)/events.o $(TARGET)/threadlist.o $(TARGET)/writerthread.o $(TARGET)/pid.o $(TARGET)/config.o
 
 agent: $(SRC)/agent.c $(MYINCLUDES)/agent.h
 	$(CC) -c -o $(TARGET)/agent.o $(SRC)/agent.c $(CFLAGS) ${INCLUDES}
@@ -25,6 +25,9 @@ threadlist: $(SRC)/threadlist.c $(MYINCLUDES)/threadlist.h
 pid: $(SRC)/pid.c $(MYINCLUDES)/pid.h
 	$(CC) -c -o $(TARGET)/pid.o $(SRC)/pid.c $(CFLAGS) ${INCLUDES}
 	 
+config: $(SRC)/config.c $(MYINCLUDES)/config.h
+
+	$(CC) -c -o $(TARGET)/config.o $(SRC)/config.c $(CFLAGS) ${INCLUDES}
 .PHONY: clean
 
 clean:
@@ -34,4 +37,5 @@ Test.class: Test.java
 	$(JAVAC) Test.java
 
 test:  Test.class all
-	$(JAVA) -Xss512k -agentpath:target/agent.so Test
+	$(JAVA) -Xss512k -agentpath:target/agent.so=file=/tmp/threadwatcher.out Test
+#	$(JAVA) -Xss512k -agentpath:target/agent.so=verbose=true,file=/tmp/threadwatcher.out Test

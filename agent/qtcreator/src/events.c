@@ -1,9 +1,11 @@
-#include "global.h"
-#include "events.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <pthread.h>
 #include <string.h>
+
+#include "config.h"
+#include "events.h"
+#include "global.h"
 
 RingBuffer *createRingBuffer() 
 {
@@ -12,6 +14,7 @@ RingBuffer *createRingBuffer()
     printf("Creating ringbuffer with size %d\n",sizeof(RingBuffer));
 #endif
 
+#ifdef DEBUG
     printf("sizeof(DataRecord): %d\n",sizeof(DataRecord));
     printf("sizeof(ThreadStartEvent): %d\n",sizeof(ThreadStartEvent));
     printf("sizeof(ThreadDeathEvent): %d\n",sizeof(ThreadDeathEvent));
@@ -22,6 +25,7 @@ RingBuffer *createRingBuffer()
     printf("Offset startEvent: %d\n",(void*) &startEvent.startEvent - (void*) &startEvent);
     printf("sizeof(jint): %d\n", sizeof(jint));
     printf("Offset threadState: %d\n",(void*) &startEvent.stateChangeEvent - (void*) &startEvent);
+#endif
 
     RingBuffer *result = (RingBuffer*) malloc( sizeof( RingBuffer ) );
     
@@ -59,10 +63,12 @@ static void unlock(RingBuffer *buffer) {
 
 void destroyRingBuffer(RingBuffer *buffer) 
 {             
-    printf("INFO: Releasing ring buffer (elements written: %d , elements read: %d)\n",buffer->elementsWritten,buffer->elementsRead);
+    if ( configuration.verboseMode ) {
+        printf("INFO: Releasing ring buffer (elements written: %d , elements read: %d)\n",buffer->elementsWritten,buffer->elementsRead);
+    }
     
     if ( buffer ->lostSamplesCount > 0 ) {
-       printf("INFO: Lost %d samples\n",buffer->lostSamplesCount);
+       printf("WARNING: Lost %d samples\n",buffer->lostSamplesCount);
     }
     free(buffer->records);
     free(buffer);
