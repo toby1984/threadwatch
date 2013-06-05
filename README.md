@@ -70,7 +70,7 @@ The following options are understood by the agent:
   <td>Description</td>  
 </tr>
 <tr>
-  <td>verbose</td><td>ignored (but required!)</td><td>Enable verbose logging</td>
+  <td>verbose</td><td>ignored (but required!)</td><td>Enable verbose logging to std out</td>
 </tr>
 <tr>
   <td>file</td><td>Path to output file</td><td>File to write thread-state transitions to</td>
