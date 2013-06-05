@@ -18,6 +18,7 @@ limitations under the License.
 #include <unistd.h>
 #include <math.h>
 #include <time.h>
+#include <limits.h>
 
 #include "pid.h"
 
@@ -35,6 +36,9 @@ static double delaySum = 0.0;
 
 static unsigned long long loopCount = 0;
 static double deviation;
+
+static long maxDelay=LONG_MIN;
+static long minDelay=LONG_MAX;
 
 static double dummyValue = 0.0;
 
@@ -103,10 +107,20 @@ void delayLoop(Config *config)
 
     delayMicros = (long) round( config->maxPidDelay * calculateDelay( deviation , 2 ) );
 
+    if ( delayMicros > maxDelay ) {
+      maxDelay = delayMicros;
+    }
+
+    if ( delayMicros < minDelay ) {
+      minDelay = delayMicros;
+    }
+
     delaySum += delayMicros;
 
     if ( config->verboseMode && (loopCount % DESIRED_LOOPS_PER_SECOND) == 0 ) {
-        printf("INFO: %f seconds elapsed (actual samples/second: %f , deviation: %f, delay loop iterations: %ld, avg. iterations: %f)\n",deltaTimeSeconds,actualLoopsPerSecond,deviation, delayMicros,delaySum/loopCount);
+        printf("INFO: %f seconds elapsed (actual samples/second: %f , deviation: %f, delay loop iterations (min/current/max): %ld / %ld / %ld, spread %ld,avg. iterations: %f)\n",deltaTimeSeconds,actualLoopsPerSecond,deviation, minDelay,delayMicros,maxDelay,maxDelay-minDelay,delaySum/loopCount);
+        maxDelay=LONG_MIN;
+        minDelay=LONG_MAX;
     }
 
     if ( delayMicros > 0 ) {
