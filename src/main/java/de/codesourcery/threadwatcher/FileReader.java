@@ -297,6 +297,7 @@ public class FileReader
             if ( event1.isAfter( end ) ) {
                 break;
             }
+            
             if ( threadIds.contains( event1.threadId ) ) 
             {
                 visitor.visit( event1 );
@@ -336,8 +337,7 @@ public class FileReader
             return false;
         }
         
-        final int bytesConsumed = toPopulate.parseBuffer( buffer , readPtr );
-        consumed(bytesConsumed);
+        consumed( toPopulate.parseBuffer( buffer , readPtr ) );
         return true;
     }
     
