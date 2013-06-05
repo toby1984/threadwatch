@@ -66,14 +66,14 @@ The following options are understood by the agent:
 <table>
 <tr>
   <td>Name</td>
-  <td>Vale</td>
+  <td>Value</td>
   <td>Description</td>  
 </tr>
 <tr>
-  <td>verbose</td><td>ignored (but required)</td><td>Enable verbose logging</td>
+  <td>verbose</td><td>ignored (but required!)</td><td>Enable verbose logging</td>
 </tr>
 <tr>
-  <td>file</td><td>Path to output file</td><td>Output file to write to</td>
+  <td>file</td><td>Path to output file</td><td>File to write thread-state transitions to</td>
 </tr>
 <tr>
   <td>maxdelay</td><td>max. delay loop iterations</td><td>&lt;see below&gt;</td>
