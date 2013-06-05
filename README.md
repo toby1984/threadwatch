@@ -9,7 +9,7 @@ This project contains
 Requirements for compiling the JVMTI agent
 ------------------------------------------
 
-Beware: I only tested compilation on my 64-bit Ubuntu 12.04. you may need additional/different compiler flags and/or paths for your environment. 
+Beware: I only tested compilation on my 64-bit Ubuntu 12.04. You may need additional/different compiler flags and/or paths for your environment. 
 
 - GNU C / make
 - libpthread
@@ -57,11 +57,11 @@ The only way to run the agent is by passing it as a command-line option when sta
 To start a JVM with the agent, use
 
 ````
-java -agentpath:<path/to/agent.so>[=options] ....
+java -agentpath:<path/to/agent.so>[=key=value[,key=value]] ....
 ````
 Note that the agent will immediately start to capture thread state transitions and write them to a file.
 
-The following optional options are understood by the agent:
+The following options are understood by the agent:
 
 <table>
 <tr>
