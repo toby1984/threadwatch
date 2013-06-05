@@ -118,7 +118,7 @@ void delayLoop(Config *config)
     delaySum += delayMicros;
 
     if ( config->verboseMode && (loopCount % DESIRED_LOOPS_PER_SECOND) == 0 ) {
-        printf("INFO: %f seconds elapsed (actual samples/second: %f , deviation: %f, delay loop iterations (min/current/max): %ld / %ld / %ld, spread %ld,avg. iterations: %f)\n",deltaTimeSeconds,actualLoopsPerSecond,deviation, minDelay,delayMicros,maxDelay,maxDelay-minDelay,delaySum/loopCount);
+        printf("INFO: %f seconds elapsed (actual samples/second: %f , deviation: %f, delay loop iterations (min/current/max): %ld / %ld / %ld, jitter %ld,avg. iterations: %f)\n",deltaTimeSeconds,actualLoopsPerSecond,deviation, minDelay,delayMicros,maxDelay,maxDelay-minDelay,delaySum/loopCount);
         maxDelay=LONG_MIN;
         minDelay=LONG_MAX;
     }
@@ -130,7 +130,7 @@ void delayLoop(Config *config)
 
 static double delay(long value)
 {
-        double dummy = 0.0;
+        double dummy = value; 
 #ifdef USE_DELAY_LOOP
         long j;
     for ( ; value > 0 ; value-- ) {

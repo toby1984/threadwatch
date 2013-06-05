@@ -27,9 +27,9 @@ limitations under the License.
 #define DEBUG_PID
 #define USE_DELAY_LOOP
 
-#define Kp -5.0
+#define Kp -1.0
 #define Ki  0.0
-#define Kd  0.1 
+#define Kd  0.1
 
 void delayLoop(Config *config);
 
