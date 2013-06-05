@@ -55,7 +55,7 @@ public class UIConstants
     {
         LEGENDITEM_RUNNABLE = addLegendItem("Runnable" , COLOR_RUNNABLE);
         LEGENDITEM_BLOCKED = addLegendItem("Blocked" , COLOR_BLOCKED);
-        LEGENDITEM_WAITING_GENERAL = new LegendItem("Waiting" , COLOR_WAITING_GENERAL);
+        LEGENDITEM_WAITING_GENERAL = addLegendItem("Waiting" , COLOR_WAITING_GENERAL);
         LEGENDITEM_WAITING_TIMEOUT = addLegendItem("Waiting (timeout)" , COLOR_WAITING_TIMEOUT);
         LEGENDITEM_WAITING_INDEFINITELY = addLegendItem("Waiting (indef.)" , COLOR_WAITING_INDEFINITELY);
         LEGENDITEM_DEAD = addLegendItem("Dead" , COLOR_DEAD);
