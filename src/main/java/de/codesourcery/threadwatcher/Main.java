@@ -21,7 +21,6 @@ import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
-import java.awt.GridLayout;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
@@ -30,25 +29,24 @@ import java.io.File;
 import java.io.IOException;
 
 import javax.swing.JFrame;
-import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.JTextField;
+import javax.swing.JSplitPane;
 
 import de.codesourcery.threadwatcher.ui.HorizontalSelectionHelper;
 import de.codesourcery.threadwatcher.ui.HorizontalSelectionHelper.DraggedMarker;
+import de.codesourcery.threadwatcher.ui.IntervalPanel;
 import de.codesourcery.threadwatcher.ui.StatisticsPanel;
 import de.codesourcery.threadwatcher.ui.ThreadPanel;
 
 public class Main 
 {
     private FileReader fileReader;
+    private IntervalPanel viewIntervalPanel;
+    private IntervalPanel selectionIntervalPanel;
+    
     private ThreadPanel chartPanel;
     private StatisticsPanel statisticsPanel;
-    
-    private final JTextField viewIntervalStart = new JTextField();
-    private final JTextField viewIntervalEnd = new JTextField();
-    private final JTextField viewIntervalDuration= new JTextField();
     
     protected static enum SelectionType {
         VIEW_INTERVAL,
@@ -72,6 +70,7 @@ public class Main
             {
                 selection = new HiResInterval( xmin , xmax );
                 chartPanel.setInterval( xmin , windowDurationMillis );
+                viewIntervalPanel.updateTextFields( chartPanel.getInterval() );
             }
         }
         
@@ -116,6 +115,7 @@ public class Main
                 chartPanel.repaint();
                 try {
                     statisticsPanel.setInterval( tmp );
+                    selectionIntervalPanel.updateTextFields( tmp );
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -154,6 +154,7 @@ public class Main
             try 
             {
                 statisticsPanel.setInterval( this.selection );
+                selectionIntervalPanel.updateTextFields( this.selection );
             } catch (IOException e) {
                 e.printStackTrace();
             }             
@@ -328,16 +329,17 @@ public class Main
             if ( e.getKeyChar() == 'd' ) 
             {
                 chartPanel.stepForward();
-                updateTextFields( chartPanel.getInterval());
+                viewIntervalPanel.updateTextFields( chartPanel.getInterval());
+                viewIntervalPanel.repaint();
             } else if ( e.getKeyChar() == 'a' ) {
                 chartPanel.stepBackward();
-                updateTextFields( chartPanel.getInterval());
+                viewIntervalPanel.updateTextFields( chartPanel.getInterval());
             } else if ( e.getKeyChar() == 's' ) 
             {
                 long newIntervalLengthMillis = (long) (chartPanel.getIntervalLengthMillis()*2.0);
                 if ( newIntervalLengthMillis > 0 ) {
                     chartPanel.setIntervalLength( newIntervalLengthMillis );
-                    updateTextFields( chartPanel.getInterval() );
+                    viewIntervalPanel.updateTextFields( chartPanel.getInterval() );
                 }
             } 
             else if ( e.getKeyChar() == 'w' ) 
@@ -345,7 +347,7 @@ public class Main
                 long newIntervalLengthMillis = (long) (chartPanel.getIntervalLengthMillis()/2.0);
                 if ( newIntervalLengthMillis > 0 ) {
                     chartPanel.setIntervalLength( newIntervalLengthMillis);
-                    updateTextFields( chartPanel.getInterval() );
+                    viewIntervalPanel.updateTextFields( chartPanel.getInterval() );
                 }                   
             }
         }
@@ -368,13 +370,6 @@ public class Main
     	new Main().run( file );
     }
     
-    private void updateTextFields(HiResInterval interval) {
-        
-    	viewIntervalStart.setText( interval.start.toUIString() );
-    	viewIntervalEnd.setText( interval.end.toUIString() );
-    	viewIntervalDuration.setText( interval.getDurationInMilliseconds()+" ms");
-    }
-    
     private static void setBackgroundColor(Component c) {
     	c.setBackground( Color.WHITE );
     }
@@ -382,102 +377,87 @@ public class Main
     {
         fileReader = new FileReader(file);
         final HiResInterval interval = fileReader.getInterval();
-        System.out.println("INTERVAL: "+interval.toUIString()+" , duration : "+interval.getDurationInMilliseconds());
         
-        // setup top-level panel
-        final JPanel controlPanel = new JPanel();
-        setBackgroundColor( controlPanel );
-        controlPanel.addKeyListener( keyListener );
-        controlPanel.setFocusable( true );
-        controlPanel.setLayout( new GridLayout(2, 3 ) );
-
-        viewIntervalStart.setColumns( 20 );
-        viewIntervalEnd.setColumns( 20 );
-        viewIntervalDuration.setColumns( 20 );
+        // setup top-level interval panel
+        viewIntervalPanel = new IntervalPanel(interval);        
+        setBackgroundColor( viewIntervalPanel );
+        viewIntervalPanel.addKeyListener( keyListener );
+        viewIntervalPanel.setFocusable( true );
         
-        setBackgroundColor( viewIntervalStart);
-        setBackgroundColor(viewIntervalEnd);
-        setBackgroundColor(viewIntervalDuration);
-        
-        viewIntervalStart.setHorizontalAlignment(JTextField.CENTER);
-        viewIntervalEnd.setHorizontalAlignment(JTextField.CENTER);
-        viewIntervalDuration.setHorizontalAlignment(JTextField.CENTER);
-        
-        viewIntervalStart.setEditable( false );
-        viewIntervalEnd.setEditable( false );
-        viewIntervalDuration.setEditable( false );
-        
-        updateTextFields( interval );
-        
-        controlPanel.add( new JLabel("Start" , JLabel.CENTER ) );
-        controlPanel.add( new JLabel("End" , JLabel.CENTER ) );
-        controlPanel.add( new JLabel("Window Duration" , JLabel.CENTER ) );
-        
-        controlPanel.add( viewIntervalStart );
-        controlPanel.add( viewIntervalEnd );
-        controlPanel.add( viewIntervalDuration );
+        // setup bottom-level interval panel
+        selectionIntervalPanel = new IntervalPanel(null); 
+        setBackgroundColor( selectionIntervalPanel );
+        selectionIntervalPanel.addKeyListener( keyListener );
+        selectionIntervalPanel.setFocusable( true );
         
         // setup chart panel
-        
 		chartPanel = new ThreadPanel(fileReader , infoIntervalChooser , interval.start , (long) Math.ceil( interval.getDurationInMilliseconds() )+3000 );
-        chartPanel.setPreferredSize(new Dimension(640,480 ) );
         chartPanel.addMouseListener( mouseListener );
         chartPanel.setFocusable( true );
+        chartPanel.setPreferredSize( new Dimension(640,480 ) );
         chartPanel.addMouseMotionListener( mouseListener );
         chartPanel.addKeyListener( keyListener );
         
         // setup main frame
-        final JFrame frame = new JFrame("Thread-Watcher V0.0");
+        final JFrame frame = new JFrame("Thread-Watcher V1.0");
         frame.setDefaultCloseOperation( JFrame.EXIT_ON_CLOSE);
         frame.getContentPane().setLayout(new GridBagLayout());
         
         GridBagConstraints cnstrs = new GridBagConstraints();
-        cnstrs.fill = GridBagConstraints.BOTH;
+        cnstrs.fill = GridBagConstraints.HORIZONTAL;
         cnstrs.gridwidth=GridBagConstraints.REMAINDER;
-        cnstrs.gridheight=GridBagConstraints.RELATIVE;
+        cnstrs.gridheight=1;
         cnstrs.gridx=0;
         cnstrs.gridy=0;        
         cnstrs.weightx=1.0;
-        cnstrs.weighty=0.0;
-        frame.getContentPane().add( controlPanel , cnstrs );
+        cnstrs.weighty=0;
+        frame.getContentPane().add( viewIntervalPanel , cnstrs );
         
-        cnstrs.fill = GridBagConstraints.BOTH;
+		// setup bottom panel
+        final JPanel bottom = new JPanel();
+        bottom.setLayout(new GridBagLayout());
+        
+        cnstrs = new GridBagConstraints();
+        cnstrs.fill = GridBagConstraints.HORIZONTAL;
         cnstrs.gridwidth=GridBagConstraints.REMAINDER;
-        cnstrs.gridheight=GridBagConstraints.REMAINDER;
+        cnstrs.gridheight=1;
         cnstrs.gridx=0;
-        cnstrs.gridy=1;
+        cnstrs.gridy=0;        
         cnstrs.weightx=1.0;
-        cnstrs.weighty=1.0;
-        final JScrollPane chartPane = new JScrollPane( chartPanel );
-        setBackgroundColor( chartPane.getViewport() );
-		frame.getContentPane().add( chartPane , cnstrs );
+        cnstrs.weighty=0;        
         
-        frame.pack();
-        frame.setVisible( true );
-
-		// setup statistics frame
-		JFrame statisticsFrame = new JFrame("Statistics");
-		statisticsFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		
+        bottom.add( selectionIntervalPanel , cnstrs );
+        
         statisticsPanel = new StatisticsPanel(fileReader);
-        statisticsPanel.setPreferredSize( new Dimension(400,100 ) );
-        statisticsPanel.setSize( new Dimension(400,100 ) );
+        statisticsPanel.setFocusable(true);
+        statisticsPanel.setBackground(Color.WHITE);
+        statisticsPanel.addKeyListener( keyListener );            
         
         cnstrs = new GridBagConstraints();
         cnstrs.fill = GridBagConstraints.BOTH;
         cnstrs.gridwidth=GridBagConstraints.REMAINDER;
         cnstrs.gridheight=GridBagConstraints.REMAINDER;
+        cnstrs.gridx=0;
+        cnstrs.gridy=1;        
         cnstrs.weightx=1.0;
-        cnstrs.weighty=1.0;  
+        cnstrs.weighty=1.0;        
         
-        statisticsFrame.getContentPane().setLayout( new GridBagLayout() );
-        statisticsFrame.getContentPane().add( new JScrollPane( statisticsPanel ) , cnstrs );
-        
-        statisticsPanel.setFocusable(true);
-        statisticsPanel.addKeyListener( keyListener );     
+        bottom.add( statisticsPanel , cnstrs );
 
-		statisticsFrame.setLocation( frame.getLocation().x + frame.getWidth()+2 , frame.getLocation().y );
-		statisticsFrame.pack();
-        statisticsFrame.setVisible( true );		
+        // add split pane
+        final JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT , new JScrollPane( chartPanel ) , bottom );
+        
+        cnstrs = new GridBagConstraints();
+        cnstrs.fill = GridBagConstraints.BOTH;
+        cnstrs.gridwidth=GridBagConstraints.REMAINDER;
+        cnstrs.gridheight=GridBagConstraints.REMAINDER;
+        cnstrs.gridx=0;
+        cnstrs.gridy=1;        
+        cnstrs.weightx=1.0;
+        cnstrs.weighty=1;          
+        frame.getContentPane().add( splitPane , cnstrs );
+
+        frame.pack();
+        frame.setVisible( true );
     }   
 }

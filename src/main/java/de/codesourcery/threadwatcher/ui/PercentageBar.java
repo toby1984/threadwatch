@@ -16,16 +16,21 @@
 package de.codesourcery.threadwatcher.ui;
 
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Insets;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
-public class PercentageBar 
+import javax.swing.JPanel;
+
+public class PercentageBar extends JPanel
 {
 	private static final Insets INSETS = new Insets(2,2,2,2);
 	
@@ -51,6 +56,14 @@ public class PercentageBar
         public double getPercentageValue();
     }
     
+    public PercentageBar() {
+    	setPreferredSize( new Dimension(100,20 ) );
+    }
+    
+    public Collection<IPercentageProvider> getValues() {
+    	return new ArrayList<>( percentages.values() );
+    }
+    
     public void setPercentage(Color color,IPercentageProvider value) 
     {
         if ( color == null ) 
@@ -61,6 +74,13 @@ public class PercentageBar
             throw new IllegalArgumentException("value must not be NULL.");
         }
         percentages.put(color,value);
+    }
+    
+    @Override
+    protected void paintComponent(Graphics g) 
+    {
+    	super.paintComponent(g);
+    	render( g , new Rectangle(0,0,getWidth() , getHeight() ) );
     }
     
     public void render(Graphics g,Rectangle bounds) 

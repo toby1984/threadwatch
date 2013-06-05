@@ -45,7 +45,7 @@ import de.codesourcery.threadwatcher.HiResTimestamp;
 import de.codesourcery.threadwatcher.ThreadEvent;
 import de.codesourcery.threadwatcher.ui.HorizontalSelectionHelper.SelectedInterval;
 
-public final class ThreadPanel extends JPanel implements Scrollable 
+public final class ThreadPanel extends JPanel 
 {
     private static final int LEGEND_HEIGHT = 20;
     private static final int RIGHT_BORDER = 20;
@@ -171,7 +171,8 @@ public final class ThreadPanel extends JPanel implements Scrollable
             visitor.render( reader );
             newSize = visitor.getEstimatedSize();
         } 
-        catch (IOException e) {
+        catch (IOException e) 
+        {
             e.printStackTrace();
         }
 
@@ -179,17 +180,17 @@ public final class ThreadPanel extends JPanel implements Scrollable
         if ( lastSelection != null ) 
         {
             HiResInterval selectedInterval = intervalHelper.getLastSelectionModelObject();
-            if ( viewInterval.contains( selectedInterval.start ) && viewInterval.containsEndInclusive( selectedInterval.end ) )
+            if ( selectedInterval != null && viewInterval.contains( selectedInterval.start ) && viewInterval.containsEndInclusive( selectedInterval.end ) )
             {
                 int xmin = modelToView( selectedInterval.start);
                 int xmax = modelToView( selectedInterval.end);
                 intervalHelper.paintSelection( g , xmin,xmax,getCanvasHeight() );
             }
         }
-        if ( newSize != null && ! newSize.equals( getPreferredSize() ) ) 
+        
+        if ( newSize != null && ! newSize.equals( myPreferredSize ) ) 
         {
-            setPreferredSize( newSize );
-            myPreferredSize = newSize;
+            myPreferredSize = newSize;       
             revalidate();
         }
     }
@@ -295,13 +296,13 @@ public final class ThreadPanel extends JPanel implements Scrollable
             int height = Y_OFFSET;
             if ( ! aliveThreadIds.isEmpty() ) 
             {
-                height += aliveThreadIds.size()*BAR_HEIGHT+(aliveThreadIds.size()-1)*BAR_SPACING;
+                height += BAR_HEIGHT+(aliveThreadIds.size()-1)*(BAR_SPACING+BAR_HEIGHT);
             }
             final Dimension legendBounds = renderLegend(false);
             
             final int width  = (int) Math.max( getWidth() , legendBounds.width );
             height += legendBounds.height;
-            return new Dimension( width , height );
+            return new Dimension( width , height ); // TODO: +200 is just a hack for testing purposes
         }
 
         private Dimension renderLegend(boolean draw) 
@@ -348,34 +349,13 @@ public final class ThreadPanel extends JPanel implements Scrollable
             }
         }
     }
-
+    
     @Override
-    public Dimension getPreferredScrollableViewportSize()
+    public Dimension getPreferredSize() 
     {
-        return myPreferredSize == null ? getPreferredSize() : myPreferredSize;
-    }
-
-    @Override
-    public int getScrollableUnitIncrement(Rectangle visibleRect, int orientation, int direction)
-    {
-        return 10;
-    }
-
-    @Override
-    public int getScrollableBlockIncrement(Rectangle visibleRect, int orientation, int direction)
-    {
-        return 10;
-    }
-
-    @Override
-    public boolean getScrollableTracksViewportWidth()
-    {
-        return true;
-    }
-
-    @Override
-    public boolean getScrollableTracksViewportHeight()
-    {
-        return false;
+    	if ( myPreferredSize == null ) {
+    		return super.getPreferredSize();
+    	}
+    	return myPreferredSize ;
     }
 }

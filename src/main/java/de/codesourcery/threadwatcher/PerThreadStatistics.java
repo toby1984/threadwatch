@@ -47,6 +47,10 @@ public final class PerThreadStatistics
         }
     }
     
+    public Double getDurationMillisFor(LegendItem item) {
+    	return sumDurationInMillis.get(item);
+    }
+    
     public void processEvent(ThreadEvent event) 
     {
         if ( lastThreadState != null ) 
