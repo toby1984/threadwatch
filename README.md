@@ -1,5 +1,5 @@
-ThreadWatcher
--------------
+ThreadWatch
+-----------
 
 This project contains 
 
