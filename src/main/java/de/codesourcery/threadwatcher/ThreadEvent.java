@@ -15,6 +15,10 @@
  */
 package de.codesourcery.threadwatcher;
 
+import java.io.DataInput;
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.io.UTFDataFormatException;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
@@ -60,7 +64,11 @@ public final class ThreadEvent
     
     protected int parseThreadStartEvent(byte[] buffer,int offset) {
         parseCommonFields(buffer,offset);
-        threadName = readString(buffer, (offset+24)%BUFFER_LENGTH, MAX_THREADNAME_LENGTH);
+        try {
+			threadName = readModifiedUTF8String(buffer, (offset+24)%BUFFER_LENGTH, MAX_THREADNAME_LENGTH);
+		} catch (UTFDataFormatException e) {
+			threadName="<no valid UTF-8>";
+		}
         return ThreadEvent.SIZEOF_THREAD_START_EVENT;
     }
     
@@ -140,7 +148,7 @@ public final class ThreadEvent
         return (hi<<8)|low;
     }
 
-    protected final String readString(byte[] buffer,int startOffset,int maxLength) 
+    protected final String readModifiedUTF8String(byte[] buffer,int startOffset,int maxLength) throws UTFDataFormatException
     {
         int zeroByteIndex=-1;
         for ( int idx = 0 ; idx < maxLength ;idx++ ) 
@@ -154,32 +162,47 @@ public final class ThreadEvent
         if ( zeroByteIndex == -1 ) {
             return null;
         }
-        try {
-        	return convert(buffer,startOffset,zeroByteIndex);
-        } catch(CharacterCodingException e) {
-        	throw new RuntimeException("Failed to parse string with max. length "+maxLength+" in file at offset "+Integer.toHexString(startOffset ) );
-        }
+       	return convertFromModifiedUTF8(buffer,startOffset,zeroByteIndex);
     }
     
-    private String convert(byte[] data,int offsetStart,int zeroByteIndex) throws CharacterCodingException
+    public static String convertFromModifiedUTF8(byte[] in, int offset, int zeroByteIndex) throws UTFDataFormatException 
     {
-        final int len;
-        if ( zeroByteIndex >= offsetStart ) {
-            len = zeroByteIndex - offsetStart;
-        } else {
-            len = BUFFER_LENGTH-offsetStart+zeroByteIndex;
-        }
-        byte[] tmp = new byte[len];
-        for ( int i = 0 , ptr = offsetStart ; ptr != zeroByteIndex ; i++) 
+    	final char[] out = new char[MAX_THREADNAME_LENGTH];
+    	
+    	final int utfSize = zeroByteIndex - offset;
+    	
+        int count = 0, s = 0, a;
+        while (count < utfSize) 
         {
-            tmp[i] = data[ ptr ];
-            ptr = (ptr+1) % BUFFER_LENGTH;
+            if ((out[s] = (char) in[offset + count++]) < '\u0080') 
+            {
+                s++;
+            } else if (((a = out[s]) & 0xe0) == 0xc0) {
+                if (count >= utfSize) {
+                    throw new UTFDataFormatException("bad second byte at " + count);
+                }
+                int b = in[offset + count++];
+                if ((b & 0xC0) != 0x80) {
+                    throw new UTFDataFormatException("bad second byte at " + (count - 1));
+                }
+                out[s++] = (char) (((a & 0x1F) << 6) | (b & 0x3F));
+            } else if ((a & 0xf0) == 0xe0) {
+                if (count + 1 >= utfSize) {
+                    throw new UTFDataFormatException("bad third byte at " + (count + 1));
+                }
+                int b = in[offset + count++];
+                int c = in[offset + count++];
+                if (((b & 0xC0) != 0x80) || ((c & 0xC0) != 0x80)) {
+                    throw new UTFDataFormatException("bad second or third byte at " + (count - 2));
+                }
+                out[s++] = (char) (((a & 0x0F) << 12) | ((b & 0x3F) << 6) | (c & 0x3F));
+            } else {
+                throw new UTFDataFormatException("bad byte at " + (count - 1));
+            }
         }
-        final ByteBuffer uniBuf = ByteBuffer.wrap(tmp,0,len);  
-        final CharsetDecoder utf8Decoder = Charset.forName("UTF-8").newDecoder();  
-        return utf8Decoder.decode(uniBuf).toString();
+        return new String(out,0,s);
     }
-
+    
     protected final int read32Bit(byte[] buffer,int offset) 
     {
         final int loWord = read16Bit(buffer,offset) & 0xffff;
