@@ -34,6 +34,8 @@ static int threadId=0;
  */
 ThreadListNode* addThreadListNode(char *threadName,jthread thread,jthread threadGlobalRef)
 {
+  const int nameLen = strlen(threadName)+1;
+
   ThreadListNode *newNode = (ThreadListNode*) malloc(sizeof(ThreadListNode));
   if ( ! newNode ) {
     fprintf(stderr,"ERROR: Failed to allocate memory for thread list node\n");
@@ -41,12 +43,12 @@ ThreadListNode* addThreadListNode(char *threadName,jthread thread,jthread thread
   }
 
   newNode->next = NULL;
-  newNode->threadName = (char*) malloc( strlen(threadName)+1 );  
+  newNode->threadName = (char*) malloc( nameLen );
   if ( ! newNode->threadName ) {
     fprintf(stderr,"ERROR: Failed to allocate memory for thread list node\n");
     abort();
   }
-  strcpy( newNode->threadName , threadName);
+  strncpy( newNode->threadName , threadName, nameLen);
   
   newNode->thread = thread;
   newNode->threadGlobalRef = threadGlobalRef;

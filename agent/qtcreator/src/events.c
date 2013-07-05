@@ -25,7 +25,7 @@ limitations under the License.
 
 RingBuffer *createRingBuffer() 
 {
-#ifdef DEBUG
+#ifdef DEBUG_STRUCTURE
     DataRecord startEvent;
 
     printf("sizeof(DataRecord): %d\n",sizeof(DataRecord));
@@ -33,6 +33,7 @@ RingBuffer *createRingBuffer()
     printf("sizeof(ThreadDeathEvent): %d\n",sizeof(ThreadDeathEvent));
     printf("sizeof(ThreadStateChangeEvent): %d\n",sizeof(ThreadStateChangeEvent));
     printf("sizeof(timestamp): %d\n",sizeof(struct timespec));
+    printf("Offset thread name: %d\n",(void*) &startEvent.startEvent.threadName[0] - (void*) &startEvent);
     printf("Offset uniqueThreadId: %d\n",(void*) &startEvent.uniqueThreadId - (void*) &startEvent);
     printf("Offset timestamp: %d\n",(void*) &startEvent.timestamp - (void*) &startEvent);
     printf("Offset startEvent: %d\n",(void*) &startEvent.startEvent - (void*) &startEvent);

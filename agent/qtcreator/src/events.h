@@ -33,21 +33,27 @@ typedef enum EventType {
    EVENT_THREAD_SAMPLE=2
 } EventType;
 
-typedef struct ThreadStartEvent {
+struct ThreadStartEvent {
    char threadName[ MAX_THREAD_NAME_LENGTH +1 ]; // +1 because of zero-byte        
-} ThreadStartEvent;
+};
 
-typedef struct ThreadDeathEvent {
-} ThreadDeathEvent;
+typedef struct ThreadStartEvent ThreadStartEvent;
 
-typedef struct ThreadStateChangeEvent {
+struct ThreadDeathEvent {
+};
+
+typedef struct ThreadDeathEvent ThreadDeathEvent;
+
+struct ThreadStateChangeEvent {
     jint state;
-} ThreadStateChangeEvent;
+};
+
+typedef struct ThreadStateChangeEvent ThreadStateChangeEvent;
 
 // TODO: Maybe include record size in bytes so
 // TODO: parser can skip unknown record types ?
 
-struct __attribute__ ((__packed__)) DataRecord {
+struct DataRecord {
        int type; // size: 4
        int uniqueThreadId; // size: 4
        struct timespec timestamp; // size: 16
@@ -55,7 +61,7 @@ struct __attribute__ ((__packed__)) DataRecord {
          ThreadStartEvent startEvent;
          ThreadDeathEvent deathEvent;
          ThreadStateChangeEvent stateChangeEvent;
-       };    
+       };
 };
 
 typedef struct DataRecord DataRecord;

@@ -18,6 +18,7 @@ limitations under the License.
 #define GLOBAL_H
 
 // #define DEBUG
+#define DEBUG_STRUCTURE
 
 // number of events that may be kept in the ringbuffer
 #define SAMPLE_RINGBUFFER_SIZE 10240

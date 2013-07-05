@@ -65,21 +65,34 @@ void startWriterThread(RingBuffer *buffer,char *file)
   }    
 }
 
-static void writeRecordToFile(DataRecord *record) 
+static void writeMember(void *data,size_t byteCount)
 {
-    int bytesToWrite;
-    int bytesWritten;
-        
+    int bytesWritten = fwrite( data , 1 , byteCount , outputFile );
+    if ( bytesWritten != byteCount )
+    {
+        fprintf(stderr,"ERROR: Failed to write %d bytes to output file\n",byteCount);
+        abort();
+    }
+}
+
+static void writeRecordToFile(DataRecord *record) 
+{        
+    // write common fields
+
+    writeMember( &record->type , sizeof( record->type ) );
+    writeMember( &record->uniqueThreadId , sizeof( record->uniqueThreadId ) );
+    writeMember( &record->timestamp , sizeof( record->timestamp ) );
+
     switch( record->type ) 
     {
         case EVENT_THREAD_START:
-            bytesToWrite = THREAD_START_EVENT_SIZE;
+            printf("Writing thread name %s\n",&record->startEvent.threadName[0]);
+            writeMember( &record->startEvent.threadName[0] , sizeof( record->startEvent.threadName ) );
             break;
         case EVENT_THREAD_DEATH:
-            bytesToWrite = THREAD_DEATH_EVENT_SIZE;
             break;
         case EVENT_THREAD_SAMPLE:
-            bytesToWrite = THREAD_STATE_CHANGE_EVENT_SIZE;
+            writeMember( &record->stateChangeEvent.state , sizeof( record->stateChangeEvent.state ) );
             break;
         default:
             fprintf(stderr,"ERROR: Internal error, don't know how to write record with type %d\n",record->type);
@@ -87,16 +100,9 @@ static void writeRecordToFile(DataRecord *record)
     }
 
 #ifdef DEBUG
-    printf("Writing record to file (type: %d , offset: %ld, bytes: %d)\n",record->type,currentFileOffset,bytesToWrite);
+    printf("Writing record to file (type: %d)\n",record->type);
     fflush(stdout);
 #endif
-
-    bytesWritten = fwrite( record , 1 , bytesToWrite , outputFile );
-    if ( bytesWritten != bytesToWrite ) 
-    {
-        fprintf(stderr,"ERROR: Failed to write %d bytes to output file\n",bytesToWrite);
-        abort();           
-    }
 }
 
 static void *writerThread(RingBuffer *buffer) 

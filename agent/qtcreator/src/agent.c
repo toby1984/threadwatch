@@ -347,7 +347,7 @@ static int populateThreadStartRecord(DataRecord *record,ThreadListNode *current)
     }    
     record->type = EVENT_THREAD_START;
     record->uniqueThreadId=current->uniqueThreadId;
-    strncpy( record->startEvent.threadName,current->threadName,MAX_THREAD_NAME_LENGTH);
+    strncpy( &record->startEvent.threadName[0],current->threadName,MAX_THREAD_NAME_LENGTH);
     return 1;
 }
 

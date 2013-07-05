@@ -19,6 +19,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
+import java.nio.charset.MalformedInputException;
 
 public final class ThreadEvent
 {
@@ -153,10 +154,14 @@ public final class ThreadEvent
         if ( zeroByteIndex == -1 ) {
             return null;
         }
-        return convert(buffer,startOffset,zeroByteIndex);
+        try {
+        	return convert(buffer,startOffset,zeroByteIndex);
+        } catch(CharacterCodingException e) {
+        	throw new RuntimeException("Failed to parse string with max. length "+maxLength+" in file at offset "+Integer.toHexString(startOffset ) );
+        }
     }
     
-    private String convert(byte[] data,int offsetStart,int zeroByteIndex) 
+    private String convert(byte[] data,int offsetStart,int zeroByteIndex) throws CharacterCodingException
     {
         final int len;
         if ( zeroByteIndex >= offsetStart ) {
@@ -172,13 +177,7 @@ public final class ThreadEvent
         }
         final ByteBuffer uniBuf = ByteBuffer.wrap(tmp,0,len);  
         final CharsetDecoder utf8Decoder = Charset.forName("UTF-8").newDecoder();  
-        try {
-            return utf8Decoder.decode(uniBuf).toString();
-        } 
-        catch (CharacterCodingException e)
-        {
-            throw new RuntimeException(e);
-        }          
+        return utf8Decoder.decode(uniBuf).toString();
     }
 
     protected final int read32Bit(byte[] buffer,int offset) 
