@@ -6,6 +6,8 @@ This project contains
 - a JVMTI monitoring agent that can be hooked into a JVM to capture Java thread state transitions and write them to a file using a proprietary binary format
 - a Swing application to plot a the thread states on a timeline
 
+![screenshot]()
+
 Requirements for compiling the JVMTI agent
 ------------------------------------------
 
